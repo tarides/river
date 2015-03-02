@@ -1,6 +1,7 @@
-S .
+S lib
+
 B _build
+
 PKG lwt
 PKG syndic
 PKG cohttp
-EXT nonrec

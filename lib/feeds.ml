@@ -44,12 +44,7 @@ type contributor = {
   face_height : int
 }
 
-let print_contributor {name; title; url; feed; face; face_height} =
-  printf "%s %s %s %s %s %i" name title url (string_of_feed feed) face
-  face_height
-
 let classify_feed ~xmlbase (xml: string) =
-  print_string xml;
   try Atom(Atom.parse ~xmlbase (Xmlm.make_input (`String(0, xml))))
   with Atom.Error.Error _ ->
           try Rss2(Rss2.parse ~xmlbase (Xmlm.make_input (`String(0, xml))))
