@@ -5,3 +5,4 @@ B _build/lib
 PKG lwt
 PKG syndic
 PKG cohttp
+PKG cow
