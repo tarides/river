@@ -1,6 +1,6 @@
 S lib
 
-B _build
+B _build/lib
 
 PKG lwt
 PKG syndic
