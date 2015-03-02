@@ -1,0 +1,7 @@
+S .
+B _build
+PKG core
+PKG lwt
+PKG syndic
+PKG cohttp
+EXT nonrec
