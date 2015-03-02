@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<?perl
+    # generate ucampas default <head> element and add stylesheet URLs
+    my $stylesheets_url = $cur->param('stylesheets_url') ||
+                                      'http://www.cam.ac.uk/global/style/';
+    my $javascript_url  = $cur->param('javascript_url') ||
+                                      'http://www.cam.ac.uk/global/js/';
+    my @add_styles = ();
+    my $style = $cur->paramc('style');
+    my $colours = defined $style ? $style->getl(0) : undef;
+    if ($colours =~ /^blue|blue-green|blue-white|green-navy|turq-blue|purple|teal\z/) {
+      push @add_styles, c('*link(rel=stylesheet, type="text/css", media=all)')
+		        ->setatt('href', NavTree::rurl($stylesheets_url .
+						       "$colours.css", $cur));
+    }
+    $c->insert(
+        ucampas_head($cur, $src,
+		     c('*link(rel=stylesheet, type="text/css", media=all)')
+		     ->setatt('href', NavTree::rurl($stylesheets_url .
+						    'layout.css', $cur)),
+		     c('*link(rel=stylesheet, type="text/css", media=print)')
+		     ->setatt('href', NavTree::rurl($stylesheets_url .
+						    'print.css', $cur)),
+                     @add_styles,
+                     #c('*link(rel="Shortcut Icon",
+                     #  href="http://www.cam.ac.uk/templates/favicon.ico")'),
+                     trans('<!--[if IE 6]><link rel="stylesheet" href="' .
+                           NavTree::rurl($stylesheets_url . 'ie6.css', $cur) .
+                           '" type="text/css" media="screen" />' .
+                           '<script type="text/javascript" src="' .
+                           NavTree::rurl($javascript_url . 'minmax.js', $cur) .
+			   '"></script><![endif]--><!--[if IE 7]>' .
+                           '<link rel="stylesheet" href="' .
+                           NavTree::rurl($stylesheets_url . 'ie7.css', $cur) .
+                           '" type="text/css" media="screen" /><![endif]-->'),
+                    ));
+?>
+<body>
+<?perl
+    # fix image URLs
+    my $images_url = $cur->param('images_url') ||
+	             "http://www.cam.ac.uk/global/images/";
+    foreach my $c ($out->cd('.l(*html)', '.l(*body)')->lfind('*img', 'all'),
+                   $out->cd('.l(*html)', '.l(*body)')->lfind('*input(id="search-button")', 'all')) {
+	if (defined (my $src = $c->cd('src'))) {
+	    $src->set(text(NavTree::rurl($images_url . $src->str, $cur)));
+	}
+    }
+?>
+<div id="skip"> <a href="#skip-content" accesskey="2">Skip to content</a>&nbsp;|&nbsp;<a href="http://www.cam.ac.uk/site/accesskeys.html"
+accesskey="0">Access key help</a> </div><div id="header">
+  <div id="branding"><a href="http://www.cam.ac.uk/" accesskey="1"><img src="identifier.gif" alt="University of Cambridge" class="ucam" /></a>
+  </div>
+
+    <div id="site-search">
+
+    <form action="http://web-search.cam.ac.uk/query.html" method="get">
+      <fieldset>
+      <label for="search-term">Search</label>
+      <input name="qt" type="text" id="search-term" accesskey="4" value="" />
+      <input id="search-button" src="button-search.gif" value="Search" alt="Search" title="Search" type="image" />
+
+      <?perl
+           my $search = $cur->paramc('search');
+           return unless defined $search;
+           my $engine=$search->get;
+           my $fieldset=$c->parent;
+           my $form=$fieldset->parent;
+           if ($engine eq 'google') {
+               $form->cd('action')->set(text 'http://www.google.co.uk/search');
+               $fieldset->cd('.l(*input(id=search-term))')->setatt('name', 'q');
+           }
+           for my $p ($search->keys) {
+               $fieldset->append(c('*input(type=hidden)')
+                                 ->setatt('name' => $p->get)
+                                 ->setatt('value' => $search->cd($p)->get));
+           }
+      ?>
+
+      </fieldset>
+    </form>
+
+  <?perl
+    # add small links (Contact us, A-Z, etc.) to right-hand side of header
+    my $headlinks = $cur->paramc('headlinks');
+    if (defined $headlinks) {
+	my $ul = c('*ul');
+        my $i = 0;
+	foreach my $p (reverse($headlinks->list)) {
+            my $a = c('*a')->copyfrom_sub($p);
+            my $href = $a->get('href');
+            $a->setatt('href', NavTree::rurl($href, $cur)) # make URL relative
+              if defined $href;
+            my $li = c('*li')->append($a);
+            $li->setatt('class' => 'last') unless $i++;
+	    $ul->append($li);
+	}
+	$c->insert($ul) if $ul->listlen;
+    }
+  ?>
+  </div><!-- #site-search ends -->
+</div>
+
+<div id="dept-title">
+<?perl
+  $c->insert(c('*h1')->append(c('*a')->setatt('href', $cur->top->rurl($cur))
+                                     ->append(text($cur->param('organization')))));
+  $c->insert(c('*h2')->append(text($cur->param('organization_subtitle'))))
+    if defined $cur->param('organization_subtitle');
+?>
+</div>
+
+<div id="container"> <a name="skip-content" id="skip-content"></a>
+<?perl
+  my $breadcrumbs = breadcrumbs($cur, 'ul' => 1,
+                                'id' => 'nav-breadcrumb',
+                                'firstclass' => 'first',
+                                'includecur' => 1);
+  my $body = $src->cd('.l(*html)', '.l(*body)') or die('No <body> found!\n');
+  my @bodyclasses = split(/\s+/, $body->get('class') || '');
+  my $primary = $body->lfind('*div(id="content-primary")', 0, 11);
+  if (!defined $primary) {
+    # Algorithm A for regular pages
+    my $cols = 1;
+    $c->insert($breadcrumbs);
+    if ($cur->param('navbar')) {
+      my $navbar = navbar($cur, undef,
+                          topopen => 1,
+                          forwardopen => 1,
+                          maxdepth => 2,
+                          maxdepthretry => 1,
+                          markcurrent =>
+                            sub { $_[1]->parent->setatt(class => 'active') });
+      if (defined $navbar) {
+        $navbar->setatt(id => 'nav-primary');
+        $c->insert($navbar);
+        $cols++;
+      }
+    }
+    my $content = $c->insert->set(c('*div(id=content)'));
+    my $section = $cur->param('section');
+    if (defined $section && $section ne '') {
+      $content->append(c('*div(id="sub-brand")')
+                       ->append(c('*p(class="section")')
+                                ->append(text $section)))
+    }
+    my $secondary = $body->lfind(c('*div(id="content-secondary")'), 0, 1);
+    if (defined $secondary) {
+      $secondary = $secondary->cut;
+      $cols++;
+    }
+    my $primary = $content->append;
+    $primary->set(c('*div(id="content-primary")'))->movelist($body);
+    $content->append($secondary);
+    $cols = ('one', 'two', 'three')[$cols-1];
+    push @bodyclasses, "$cols-col", "dept";
+    $out->cd('.l(*html)', '.l(*body)')->setatt(class => join(' ', @bodyclasses));
+  } else {
+    # Algorithm B for home-page portals
+    $out->cd('.l(*html)', '.l(*body)')->setatt(class => join(' ', @bodyclasses))
+      if @bodyclasses;
+    $primary->splice(0, 0, $breadcrumbs) if defined $breadcrumbs;
+    $c->insert(c('*div(id=content)')->movelist($body));
+  }
+?>
+
+<ul id="site-info"><?perl
+{
+    # left-hand side footer
+    my $organization = $cur->param('organization');
+    my $lastmod = $cur->get('svndate') || $cur->get('mtime_iso_local');
+    my $ownername = $cur->get('svnauthor') || $cur->get('ownergcos');
+    my $footer = c('*li(class=copy)');
+    # copyright notice
+    my $copyright_year = $cur->param('copyright_year');
+    $copyright_year = substr($lastmod, 0, 4) unless defined $copyright_year;
+    my $copyright_holder = $cur->param('copyright_holder');
+    if (!defined $copyright_holder) {
+	$copyright_holder = "University of Cambridge";
+	if (defined $organization &&
+	    $organization ne 'University of Cambridge') {
+	    $copyright_holder = "$organization, $copyright_holder";
+	}
+        my $address = $cur->param('address');
+	if (defined $address) {
+	    $copyright_holder .= ", " . $address;
+	}
+    }
+    $footer->append(text "© $copyright_year $copyright_holder")
+	unless $copyright_holder eq '';
+    # contact details for comments
+    my $webmaster = $cur->paramc('webmaster');
+    if (defined $webmaster) {
+	my $webmaster_name  = $webmaster->get('name');
+	my $webmaster_url   = $webmaster->get('url');
+	my $webmaster_email = $webmaster->get('email');
+	$webmaster_name = $webmaster_email
+	    if !defined $webmaster_name;
+	$webmaster_url = "mailto:$webmaster_email"
+	    if !defined $webmaster_url and defined $webmaster_email;
+	if ($webmaster_name) {
+	    $footer->append('*br') if $footer->listlen;
+	    $footer->append(text "Information provided by ");
+	    my $l = $footer->append;
+	    if ($webmaster_url) {
+		$l->set('*a')->addkey('href', text $webmaster_url);
+		$l = $l->append;
+	    }
+	    $l->set(text $webmaster_name);
+	}
+    }
+    # note on access restrictions
+    my $restrictions = $cur->access_restrictions;
+    if ($restrictions) {
+	$footer->append('*br') if $footer->listlen;
+	$footer->append(text $restrictions);
+    }
+    if ($cur->param('lastmod')) {
+        # Last modified notice and hidden edit link
+        $footer->append('*br') if $footer->listlen;
+        $footer->append(text "Last ");
+        my $editurl;
+        if (defined($editurl = $cur->param('edit_url'))) {
+	    $footer->append(c('*a(accesskey=m)')->append(text "modified")
+			    ->setatt('href', $editurl)
+			    ->setatt('style', 'color: black;'));
+        } else {
+	    $footer->append(text "modified");
+        }
+        $footer->append(text " $lastmod by $ownername");
+    }
+    $c->insert($footer);
+    # add small links (policy, etc.) to right-hand side footer
+    my $footlinks = $cur->paramc('footlinks');
+    if (defined $footlinks) {
+	my $i;
+	foreach my $p (reverse($cur->paramc('footlinks')->list)) {
+            my $a = c('*a')->copyfrom_sub($p);
+            my $href = $a->get('href');
+            $a->setatt('href', NavTree::rurl($href, $cur)) # make URL relative
+              if defined $href;
+            my $li = $i++ ? c('*li(class="link")')
+                          : c('*li(class="link last")');
+	    $li->append($a);
+            $c->insert($li);
+	}
+    }
+    # add additional material to footer
+    my $footadd = $cur->paramc('footadd');
+    $c->insert(c('*li')->copyfrom_sub($footadd)) if defined $footadd;
+
+}
+?></ul>
+</div>
+</body></html>

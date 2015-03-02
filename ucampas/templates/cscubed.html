@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
+<?perl
+    # generate ucampas default <head> element and add stylesheet URLs
+    my $stylesheets_url = $cur->param('stylesheets_url') ||
+                                      'http://www.cl.cam.ac.uk/style/';
+    my $javascript_url  = $cur->param('javascript_url') ||
+                                      'http://www.cl.cam.ac.uk/js/';
+    $c->insert(
+        ucampas_head($cur, $src,
+                     c('*link(rel=stylesheet, type="text/css", media=all)')
+                     ->setatt('href', NavTree::rurl($stylesheets_url .
+                                                    'cscubed/style.css', $cur)),
+                     c('*script(type="text/javascript")')
+                     ->setatt(src => NavTree::rurl($javascript_url . 'jquery.min.js', $cur)),
+                     c('*script(type="text/javascript")')
+                     ->setatt(src => NavTree::rurl($javascript_url . 'jquery.corner.js', $cur)),
+                     c(q[*script(type="text/javascript", "$(document).ready(function(){
+$('ul#sub-menu li:last').css({ 'border' : 'none' });$('ul#sub-menu li:last a').css({ 'text-decoration' : 'none' });$('.rounded').corner('4px');});")]),
+                    ));
+?>
+<body>
+<?perl
+    # fix image URLs
+    my $images_url = $cur->param('stylesheets_url') ||
+                     "http://www.cam.ac.uk/style/cscubed/";
+    foreach my $c ($out->cd('.l(*html)', '.l(*body)')->lfind('*img', 'all'),
+                   $out->cd('.l(*html)', '.l(*body)')->lfind('*input(id="search-button")', 'all')) {
+        if (defined (my $src = $c->cd('src'))) {
+            $src->set(text(NavTree::rurl($images_url . "cscubed/" . $src->str, $cur)));
+        }
+    }
+?>
+
+<div id="wrapper">
+  <div id="header">
+    <img id="logo" src="logo-cscubed.png" width="87" height="87" alt="CSCubed logo" />
+    <img id="header-strap" src="header-strap.png" width="410" height="35" alt="Discover a new dimension in computer science" />
+    <img id="header-glow" src="header-glow.png" width="955" height="125" alt="Header glow" />
+<?perl
+      my $menu = c("*div(id=menu-holder)");
+      my $navbar = append_navtabs($menu, $cur, undef,
+                          markcurrent =>
+                            sub { $_[1]->parent->setatt(class => 'page_item current_page_item') },
+                          markonpath =>
+                            sub { $_[1]->parent->setatt(class => 'page_item current_page_parent') });
+      $c->insert($menu);
+?>
+
+  </div><!-- /header -->
+          
+  <div id="content">
+
+<?perl
+  # create left-column from advert and available img-*.jpg files
+  my $leftcolumn = c('*div(id=left-column)');
+  my $advert = $cur->paramc('advert');
+  $leftcolumn->append($advert) if defined $advert and !$advert->isempty;
+  my $images =  c('*div(id=images, class=rounded)');
+  my $dir = $cur->fdirname;
+  for (my $i = 1; 1; $i++) {
+    my $fn = "img-$i.jpg";
+    last unless -r $dir . "img-$i.jpg";
+    $images->append(c('*img(alt="")')->setatt(src => $fn)); # width: 230px
+  }
+  if ($images->listlen) {
+    $leftcolumn->append($images);
+  } else {
+    my $default_image = $cur->paramc('default_image');
+    $leftcolumn->append($default_image) if defined $default_image;
+  }
+  $c->insert($leftcolumn) if $leftcolumn->listlen;
+
+  # transfer <body>
+  my $body = $src->cd('.l(*html)', '.l(*body)') or die('No <body> found!\n');
+  $c->insert(c('*div(id=right-column)')->movelist($body));
+?>
+
+  </div><!-- /content -->
+
+  <div id="footer">
+    <img id="logo-uoc" src="logo-university-of-cambridge.png" width="205" height="55" alt="University of Cambridge" />
+    <ul id="sub-menu">
+<?perl
+    my $footlinks = $cur->paramc('footlinks');
+    if (defined $footlinks) {
+        my $i;
+        foreach my $p ($footlinks->list) {
+            my $li = $i++ ? c('*li(class="link")')
+                          : c('*li(class="link last")');
+            $li->append(c('*a')->copyfrom_sub($p));
+            $c->insert($li);
+        }
+    }
+?>
+    </ul>
+  </div><!-- /footer -->
+
+</div><!-- /wrapper -->
+</body>
+</html>

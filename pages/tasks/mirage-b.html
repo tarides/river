@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<head><title>Mirage OS</title>
+    <style>
+    a.icon-github {
+	background: url(../github.png) no-repeat 0 0;
+	padding: 0 0 2px 2em;
+    }
+    a.icon-cloud {
+	background: url(../cloud.png) no-repeat 0 0;
+        background-size: 17px;
+	padding: 0 0 2px 2em;
+    }
+    a.icon-bullhorn {
+	background: url(../bullhorn.png) no-repeat 0 0;
+        background-size: 17px;
+	padding: 0 0 2px 2em;
+    }
+    a.icon-wrench {
+	background: url(../wrench.png) no-repeat 0 0;
+        background-size: 17px;
+	padding: 0 0 2px 2em;
+    }
+    </style>
+  </head><body>
+    <div class="ucampas-toc right"></div>
+    
+    
+            <style type="text/css">
+            table { 
+            table-layout: fixed;
+            border-spacing: 0px 2px;
+            }
+            .blank { background-color: #fefefe; }
+            .planning { background-color: #bbccee; }
+            .doing { background-color: #eeeebb; }
+            .complete { background-color: #bbddbb; }
+            img.mugshot { float:left; padding-right: 5px; }
+            tr.dates {
+            font-size: 0.75em;
+            background-color: #dfdfdf;
+            color: #111111;
+            }
+            </style>
+          
+    <h1 id="mirage">Mirage OS</h1>
+    <div class="width:75%"><p><a href="http://openmirage.org"><img width="70px" src="../images/mirage.jpg" class="left"/></a>The cloud has so far mostly been used to consolidate existing operating systems
+and manage them more conveniently. The interface between guest kernels,
+applications and VMs are all managed very differently, leading to serious
+inefficiencies, unreliability and insecurity.  <a href="http://www.openmirage.org">Mirage
+OS</a> revisits the library OS concept (built here as
+<a href="http://www.cl.cam.ac.uk/research/srg/netos/old-projects/nemesis/documentation.html">Nemesis</a>
+in the late '90s), and narrows the gap between safe, high-level programming,
+and low-level systems construction.</p>
+<p>Applications are written in high-level OCaml and compiled directly into
+microkernels that run on the Xen hypervisor. By treating the hypervisor as a
+stable hardware platform, we can focus on high-performance protocol
+implementations without worrying about having to support the thousands of
+device drivers found in a traditional OS.  Although Mirage initially targets
+the Xen hypervisor, other backends, such as a FreeBSD kernel module and
+Javascript, also exist.</p>
+<p>Mirage includes clean-slate functional implementations of protocols ranging
+from TCP/IP, DNS, SSH, Openflow (switch/controller), HTTP, XMPP and Xen
+inter-VM transports. Some of the new applications we're building using Mirage
+include the next-generation <a href="http://www.xen.org/products/cloudxen.html">Xen Cloud
+Platform</a> (a widely deployed
+open-source Xen distribution), dubbed <a href="http://xen.org/xensummit/xs12na_talks/T2.html">Project
+Windsor</a>.</p>
+</div>
+    <h2 id="Team">Team</h2>
+    <p><a href="../people/amirmc.html"><img class="inline" style="" height="50px" src="../mugshots/amir.jpg"/></a><a href="../people/avsm.html"><img class="inline" style="" height="50px" src="../mugshots/avsm.jpg"/></a><a href="../people/balrajsingh.html"><img class="inline" style="" height="50px" src="../mugshots/unknown.jpg"/></a><a href="../people/bogdan.html"><img class="inline" style="" height="50px" src="../mugshots/unknown.jpg"/></a><a href="../people/crowcroft.html"><img class="inline" style="" height="50px" src="../mugshots/crowcroft.gif"/></a><a href="../people/djs.html"><img class="inline" style="" height="50px" src="../mugshots/djs.jpg"/></a><a href="../people/gabor.html"><img class="inline" style="" height="50px" src="../mugshots/gabor.jpg"/></a><a href="../people/haris.html"><img class="inline" style="" height="50px" src="../mugshots/haris.jpg"/></a><a href="../people/jludlam.html"><img class="inline" style="" height="50px" src="../mugshots/jludlam.jpg"/></a><a href="../people/lars.html"><img class="inline" style="" height="50px" src="../mugshots/lars.jpg"/></a><a href="../people/mac.html"><img class="inline" style="" height="50px" src="../mugshots/mac.jpg"/></a><a href="../people/mort.html"><img class="inline" style="" height="50px" src="../mugshots/mort.png"/></a><a href="../people/raphael.html"><img class="inline" style="" height="50px" src="../mugshots/unknown.jpg"/></a><a href="../people/rwatson.html"><img class="inline" style="" height="50px" src="../mugshots/rwatson.jpg"/></a><a href="../people/smh.html"><img class="inline" style="" height="50px" src="../mugshots/smh.jpg"/></a><a href="../people/tg.html"><img class="inline" style="" height="50px" src="../mugshots/tg.png"/></a><a href="../people/vb.html"><img class="inline" style="" height="50px" src="../mugshots/vb.jpg"/></a></p>
+    <h2 id="Tasks">Tasks</h2>
+    <table class="projects" width="95%">
+    <tr class="dates"><td>Sep '12</td><td>Oct '12</td><td>Nov '12</td><td>Dec '12</td><td>Jan '13</td><td>Feb '13</td><td>Mar '13</td><td>Apr '13</td><td>May '13</td><td>Jun '13</td><td>Jul '13</td><td>Aug '13</td><td>Sep '13</td><td>Oct '13</td><td>Nov '13</td><td>Dec '13</td><td>Jan '14</td><td>Feb '14</td><td>Mar '14</td><td>Apr '14</td><td>∞</td></tr>
+     <tr>  <td class="complete" colspan="7">
+               <a href="http://anil.recoil.org"><img class="mugshot" alt="Anil Madhavapeddy" src="../mugshots/avsm.jpg" height="30px"/></a>
+               <a href="#Unikernel Mirage prototype">Unikernel Mirage prototype</a><br/>
+             </td> <td class="blank" colspan="13"></td> <td></td> </tr>  <tr> <td class="blank" colspan="4"></td> <td class="complete" colspan="5">
+               <a href="http://amirchaudhry.com"><img class="mugshot" alt="Amir Chaudhry" src="../mugshots/amir.jpg" height="30px"/></a>
+               <a href="#Xen.org incubation">Xen.org incubation</a><br/>
+             </td> <td class="blank" colspan="11"></td> <td></td> </tr>  <tr> <td class="blank" colspan="6"></td> <td class="complete" colspan="4">
+               <a href="https://github.com/vbmithr"><img class="mugshot" alt="Vincent Bernardoff" src="../mugshots/vb.jpg" height="30px"/></a>
+               <a href="#Mirari">Mirari</a><br/>
+             </td> <td class="blank" colspan="10"></td> <td></td> </tr>  <tr> <td class="blank" colspan="6"></td> <td class="complete" colspan="5">
+               <a href="http://dave.recoil.org"><img class="mugshot" alt="Dave Scott" src="../mugshots/djs.jpg" height="30px"/></a>
+               <a href="#Mirage Developer Preview">Mirage Developer Preview</a><br/>
+             </td> <td class="blank" colspan="9"></td> <td></td> </tr>  <tr> <td class="blank" colspan="12"></td> <td class="complete" colspan="3">
+               <a href="http://anil.recoil.org"><img class="mugshot" alt="Anil Madhavapeddy" src="../mugshots/avsm.jpg" height="30px"/></a>
+               <a href="#Mirage 1.0">Mirage 1.0</a><br/>
+             </td> <td class="blank" colspan="5"></td> <td></td> </tr>  <tr> <td class="blank" colspan="8"></td> <td class="planning" colspan="6">
+               <img class="mugshot" alt="Balraj Singh" src="../mugshots/unknown.jpg" height="30px"/>
+               <a href="#Formalisms for packet processing">Formalisms for packet processing</a><br/>
+             </td> <td class="blank" colspan="6"></td> <td></td> </tr>  <tr> <td class="blank" colspan="10"></td> <td class="doing" colspan="3">
+               <a href="http://people.freebsd.org/~pgj"><img class="mugshot" alt="Gabor Pali" src="../mugshots/gabor.jpg" height="30px"/></a>
+               <a href="#kFreeBSD">kFreeBSD</a><br/>
+             </td> <td class="blank" colspan="7"></td> <td></td> </tr>  <tr> <td class="blank" colspan="2"></td> <td class="complete" colspan="8">
+               <img class="mugshot" alt="Bogdan-Alexandru Matican" src="../mugshots/unknown.jpg" height="30px"/>
+               <a href="#Nigori">Nigori</a><br/>
+             </td> <td class="blank" colspan="10"></td> <td></td> </tr> 
+    <tr><td colspan="21"> </td></tr>
+    </table>
+  
+    
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Unikernel Mirage prototype">Unikernel Mirage prototype</h3>
+         <p><a href="../people/avsm.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/avsm.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/avsm.html">Anil Madhavapeddy</a> (Aug 2012 - Mar 2013) <br/><a class="icon-pdf" href="../papers/index.html#asplos-2013-unikernels">ASPLOS 2013</a>   <a class="icon-pdf" href="../papers/index.html#hotcloud-2010-mirage">HotCloud 2010</a>   </p>
+         <p>The first Mirage prototype was initially described in the <a href="http://anil.recoil.org/papers/2010-hotcloud-lamp.pdf">HotCloud 2011</a> paper, and then
+built and evaluated in the <a href="http://anil.recoil.org/papers/2013-asplos-mirage.pdf">ASPLOS 2013</a> paper.   During the
+course of the work, we separated our thinking into the general concept of
+<em>unikernels</em> (which are specialised, sealed tasks that can be compiled very
+portably), and the OCaml-based Mirage prototype that comprehensively
+implemented the solution.</p>
+<p>This task resulted in a solid prototype for the evaluation in the paper, but
+further cleanup and documentation is still required to release a public
+version. This continues as part of the Xen.org incubation task.</p>
+
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Xen.org incubation">Xen.org incubation</h3>
+         <p><a href="../people/amirmc.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/amir.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/amirmc.html">Amir Chaudhry</a> (Dec 2012 - May 2013) <br/><a class="icon-cloud" href="http://wiki.xen.org/wiki/Mirage_Incubation_Project_Proposal">Proposal</a>   <a class="icon-cloud" href="http://www.xenproject.org/developers/teams/mirage-os.html">Xen.org Mirage Page</a>   </p>
+         <p>The Mirage project is being incubated as an official
+<a href="http://xen.org">xen.org</a> project. This will give us a neutral
+community ground to continue long-term development of the libraries
+and tools required to turn it into a robust, production-grade
+exokernel.</p>
+<p>To date we have:</p>
+<ul><li>Created a <a href="http://wiki.xen.org/wiki/Mirage_Incubation_Project_Proposal">proposal for the Xen community</a></li><li>Gone through a <a href="http://markmail.org/message/ikpv4djvamqpqaez">formal voting process</a></li><li>Been <a href="http://markmail.org/message/ax66a2orx4gh7ak2">accepted into the xen.org incubator</a></li></ul>
+
+<p>The next stage is to continue working with
+<a href="http://wiki.xen.org/wiki/User:Lars.kurth">Lars</a> on the new xen.org
+properties and public announcements.</p>
+<p>In addition, Xen.org has become a Linux Foundation Collaborative Project and
+MirageOS was prominently mentioned in the
+<a href="http://www.linuxfoundation.org/news-media/announcements/2013/04/xen-become-linux-foundation-collaborative-project">press release</a>!</p>
+
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Mirari">Mirari</h3>
+         <p><a href="../people/vb.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/vb.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/vb.html">Vincent Bernardoff</a> (Feb 2013 - Jun 2013) <br/><a class="icon-github" href="https://github.com/mirage/mirari">Github</a>   <a class="icon-cloud" href="http://openmirage.org/blog/introducing-vchan">Blog</a>   </p>
+         <p>Mirari takes a single configuration file and splits the lifecycle of a
+Mirage application into three distinct segments:</p>
+<ul><li><p>configuration: it scans the config file, checks for any missing OPAM
+ dependencies, and installs them if missing.  It also looks for any
+ filesystem directives and calls mir-crunch to generate the static ML
+ files.  All of this is then glued together into an autogenerated
+ main.ml which is the entry point for the application.</p>
+</li><li><p>build: it runs the OCaml build (via Vincent's obuild), and then
+ issues any backend-specific commands (such as the specific link
+ script for the Xen backend, or whatever else we dream up). For
+ convenience, a symlink pointing to the compiled binary will be
+ created in the current working directory.</p>
+</li><li><p>run: this is being implemented.  Running a Mirage application is
+ quite stateful: in the case of Xen, we want to monitor the kernel,
+ attach a console, and so on.  Similarly for UNIX, one can imagine
+ the socket version opening up a control channel for Mirari to pass
+ additionnal configuration directives, such as network interfaces.
+ An in the kFreeBSD backend, this would be done via ioctls or other
+ kernel/user interfaces.</p>
+</li></ul>
+
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Mirage Developer Preview">Mirage Developer Preview</h3>
+         <p><a href="../people/djs.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/djs.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/djs.html">Dave Scott</a> (Feb 2013 - Jul 2013) <br/><a class="icon-github" href="https://github.com/mirage/mirage-platform">Github</a>   <a class="icon-cloud" href="http://openmirage.org/wiki/weekly-2013-04-16">Meeting Minutes</a>   </p>
+         <p>The Mirage developer preview aims to be a stable release of the Mirage tools
+and libraries in OPAM, and a simple (tested) &quot;Getting started guide&quot; on the
+wiki.</p>
+<p>The three target applications are to build and run:</p>
+<ol><li>a self-hosting website and DNS server (without SSL)</li><li>stub-domains for xenstore and xenconsoled, demonstrating how mirage can be used to build critical infrastructure.</li><li>simple distributed system using multiple communicating Mirage instances</li></ol>
+
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Mirage 1.0">Mirage 1.0</h3>
+         <p><a href="../people/avsm.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/avsm.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/avsm.html">Anil Madhavapeddy</a> (Aug 2013 - Nov 2013) <br/><a class="icon-github" href="https://github.com/mirage/mirage">Github</a>   <a class="icon-cloud" href="http://openmirage.org/blog/announcing-mirage10">Announcement</a>   <a class="icon-cloud" href="http://openmirage.org">Homepage</a>   </p>
+         <p>The first release of Mirage 1.0 has the goal of self-hosting infrastructure running on Xen (ideally on Amazon EC2 or Rackspace), and a set of tools to make it easy to extend the system with new backends and device drivers.  See the announcement blog post for more.</p>
+
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Formalisms for packet processing">Formalisms for packet processing</h3>
+         <p><a href="../people/balrajsingh.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/unknown.jpg"/></a>  <span class="planning">Planning</span> by <a href="../people/balrajsingh.html">Balraj Singh</a> (Apr 2013 - Oct 2013) <br/></p>
+         
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="kFreeBSD">kFreeBSD</h3>
+         <p><a href="../people/gabor.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/gabor.jpg"/></a>  <span class="doing">In Progress</span> by <a href="../people/gabor.html">Gabor Pali</a> (Jun 2013 - Sep 2013) <br/></p>
+         
+         <br/></div>
+      
+         <div style="width:75%">
+         <h3 style="border-bottom: thin solid #999999;" id="Nigori">Nigori</h3>
+         <p><a href="../people/bogdan.html"><img class="inline" style="float:left; padding-right: 30px" height="40px" src="../mugshots/unknown.jpg"/></a>  <span class="complete">Complete</span> by <a href="../people/bogdan.html">Bogdan-Alexandru Matican</a> (Oct 2012 - Jun 2013) <br/><a class="icon-pdf" href="http://www.links.org/files/nigori-overview.pdf">Original Nigori paper</a>   </p>
+          
+         <br/></div>
+      
+  </body>

@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<?perl
+    # generate ucampas default <head> element and add stylesheet URLs
+    my $stylesheets_url = $cur->param('stylesheets_url');
+    my $head =
+        ucampas_head($cur, $src,
+		     c('*link(rel=stylesheet,type="text/css")')
+		     ->setatt('href', NavTree::rurl($stylesheets_url .
+						    'wolfson_styles.css',
+						    $cur)));
+    $c->insert($head);
+?>
+<body>
+<div class="skiplink">
+<a accesskey="2" href="#startcontent">Skip over navigation</a></div>
+<div class="header">
+  <form action="http://www.google.com/search">
+    <div class="headlinks">
+    <input type="hidden" name="sitesearch" value="www.wolfson.cam.ac.uk" />
+    <input type="hidden" name="domains" value="www.wolfson.cam.ac.uk" />
+    <a href="http://search.cam.ac.uk/?inst=WOLFC"><label for="search">Search: </label></a><input type="text" name="q" id="search" size=10 />
+<?perl
+  my $headlinks = $cur->paramc('headlinks');
+  if (defined $headlinks) {
+      for my $h ($headlinks->list) {
+          $c->insert(text ' | ');
+          $c->insert(c('*a')->copyfrom_sub($h));
+      }
+  }
+?></div></form>
+  <div class="wordmark"><a href="/"><?perl $c->parent->setatt('href', $cur->top->rurl($cur)); ?><img src="wcc-wordmark-reversed-580x90.png" alt="Wolfson College Cambridge"></a>
+  </div>
+<div class="shadow"></div>
+</div>
+<?perl
+    # navtable with tabs
+    my @toplist = _visiblelist($cur, $cur->top, 0);
+    my $tabs = @toplist + 1; # number of visible root tabs (including home)
+    my $rows = $cur->param('tabrows');
+    $rows = 2 unless defined $rows;
+    my $toprowlevel = 1;
+    my $navtable = c('*table(class=navtable)');
+    $navtable->setatt('class' => 'navtable singlerow') if ($rows == 1);
+    for (my $row = 0; $row < $rows; $row++) {
+	my $level = $row + $toprowlevel;
+	my $red = $row > 0; # shell we use the white or red tabs?
+	my $fillers = $tabs; # keep track of unused tabs at the right side
+	my $r = $navtable->append()->set(c('*tr'));
+	my $shadow = c("*td(class=shadow)");
+	# iterate through tabs
+        my @list = _visiblelist($cur, $cur->level($level-1), 0);
+        if ($row == 0 && @list && $cur->param('navtopinclude')) {
+            unshift @list, $list[0]->parent;
+        } else {
+            # left padding
+	    $r->append(c('*td'));
+	    $r->append(c('*td(class=shadowpadding)'));
+	    $fillers--;
+        }
+	for my $n (@list) {
+            my $me = $n->depth == $level ? $n->isonpathto($cur) :
+                                           $n->nid eq $cur->nid;
+	    my $l = text $n->navtitle;
+	    $l = c('*a')
+		->setatt('href'  => $n->rurl($cur))
+		->append($l);
+            my $td = c('*td')->append($l);
+            $td->setatt('class' => 'current') if $me;
+            if ($cur->param('jsmenu')) {
+		my $menu = navbar($cur, $n,
+                                  'topopen' => 1,
+				  'table' => 1,
+				  'class' => 'jsmenu');
+		$td->append($menu) if defined $menu;
+            }
+	    $r->append($td);
+	    $r->append($shadow);
+	    $fillers--;
+	}
+	# fill unused tabs
+	for (my $i = 0; $i < $fillers; $i++) {
+	    $r->append(c('*td'));
+	    $r->append(c('*td(class=shadowpadding)'));
+	}
+	# right padding
+	$r->append(c('*td(class=rightpadding, " ")'));
+    }
+    $c->insert(c("*div(class=navtable)")->append($navtable)) if $rows;
+    # div needed due to  https://bugzilla.mozilla.org/show_bug.cgi?id=63895
+?>
+<?perl $c->insert(breadcrumbs($cur, includecur => 1, id => 'bread',
+                              nonempty => 1, separator => text(' > '))); ?>
+<table class="bodytable">
+<?perl
+    my $tr = c('*tr');
+    # arrange left and right margin features
+    my $rows = $cur->param('tabrows');
+    $rows = 2 unless defined $rows;
+    # fix image URLs
+    my $images_url = $cur->param('images_url') ||
+	             "http://www.wolfson.cam.ac.uk/assets/";
+    foreach my $c ($out->cd('.l(*html)', '.l(*body)')->lfind('*img', 'all')) {
+	if (defined (my $src = $c->cd('src'))) {
+	    $src->set(text(NavTree::rurl($images_url . $src->str, $cur)));
+	}
+    }
+    # fill body table
+    my $pagecolumns = $cur->paramc('pagecolumns');
+    if (!defined($pagecolumns)) {
+	$pagecolumns = c(<<'EOT');
+	(
+	 ( style="width: 10%; text-align: right, vertical-align: top",
+	   img(0), img(t), navbar, img(3, step=2, margin-top=300) ),
+	 ( style="width: 2%", spacercol ),
+	 ( style="width: 76%; vertical-align: top;",
+	   body ),
+	 ( style="width: 2%", spacercol ),
+	 ( style="width: 10%; vertical-align:bottom",
+	   img(1), img(2, step=2, margin-top=300) ),
+	 )
+EOT
+    }
+    my $spacercol;
+ PAGECOLUMN:
+    foreach my $pc ($pagecolumns->list) {
+	my $col = c('*td');
+	$col->copyfrom_dir($pc);
+	foreach my $pce ($pc->list) {
+	    my $type = $pce->str;
+	    if ($type eq 'img') {
+		# place images as instructed
+		my $start = $pce->getl(0);
+		my $step = $pce->get('step');
+		my $tmargin = $pce->get('margin-top');
+		my $img;
+		for (my $i = $start;
+		     defined($img = image($cur, $i)); $i += $step) {
+		    my $p = c('*p');
+		    $p->setatt(style =>
+			       "margin-top: ${tmargin}px; ".
+			       "padding-top: 0;")
+			if defined $tmargin;
+		    $p->append($img);
+		    $col->append($p);
+		    last unless defined $step;
+		}
+	    } elsif ($type eq 'navbar') {
+		# place left-hand navigation bar
+		if ($cur->depth >= $rows && $cur->param('navbar')) {
+		    my $menu = navbar($cur, $cur->level($rows),
+				      topopen     => $cur->paramc('navbar')
+                                                         ->get('topopen') || 1,
+				      forwardopen => $cur->paramc('navbar')
+                                                         ->get('forwardopen') || 1,
+				      class       => 'navmenu',
+				      markcurrent =>
+				        sub { $_[1]->setatt('class'
+                                                            => 'navcurrent') },
+				      markswitch  =>
+				        sub {$_[1]->append(text ' »')} );
+		    $col->append($menu) if defined $menu;
+		}
+	    } elsif ($type eq 'body') {
+		# insert body
+		$col->append(c('*a(id=startcontent, name=startcontent)'));
+		$col->copyfrom_list($src->cd('.l(*body)'));
+	    } elsif ($type eq 'spacercol') {
+		# a spacer column consists only of a NBSP and is output
+		# only if it is not the first column and if the column
+		# following it is not empty
+		next unless $tr->listlen;
+		$col->setatt(class => 'spacercol');
+		$spacercol = $col;
+		# postpone insertion of spacer col until we actually need it
+		next PAGECOLUMN;
+	    }
+	}
+	if ($col->listlen) {
+	    $tr->append($spacercol) if defined $spacercol;
+	    $tr->append($col);
+	}
+	undef $spacercol;
+    }
+    $c->insert($tr);
+?>
+</table>
+<div class="footer">
+  <div class=shadow></div>
+  <div class="footlogo"><a href="http://www.cam.ac.uk/"><img src="univ_of_cam_logo.gif"
+       width="145" height="30" alt="University of Cambridge logo"></a></div>
+  <div class=footlinks>
+<?perl
+  my $footlinks = $cur->paramc('footlinks');
+  if (defined $footlinks) {
+      for my $h ($footlinks->list) {
+          $c->insert(c('*a(class=hidden)')->copyfrom_sub($h));
+          $c->insert(c('*br'));
+      }
+  }
+?></div>
+<div class="notice">&copy; Wolfson College, Cambridge<br />
+<?perl
+    my $lastmod = $cur->get('svndate') || $cur->get('mtime_iso_local');
+    my $ownername = $cur->get('svnauthor') || $cur->get('ownergcos');
+    my $srcfile = $src->get(c('.l(*head)',
+			      '.l(*meta(name="ucampas-sourcefile"))',
+			      'content'));
+    if (defined $srcfile) {
+	$srcfile = $cur->apath('dir') . $srcfile;
+    } else {
+	$srcfile = $cur->apath('srcfile');
+    }
+    my $retpath = $cur->apath;
+    $srcfile =~ s/([\/])/sprintf('%%%2X', ord($1))/ge;
+    $retpath =~ s/([\/])/sprintf('%%%2X', ord($1))/ge;
+    $c->insert(text "Page last ",
+	       c('*a(class=hidden, accesskey=m)')
+	       ->setatt('href' => '/cgi/edit/draft?p=' . $srcfile .
+			'&r=' . $retpath)
+	       ->append(text 'modified'),
+	       text(" $lastmod by $ownername")) if $cur->param('lastmod');
+?>
+
+</div>
+</body>

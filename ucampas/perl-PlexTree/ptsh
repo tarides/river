@@ -1,0 +1,263 @@
+#!/usr/bin/perl -w
+# ptsh -- the PlexTree Shell, providing interactive access to
+#         compounds and filters
+
+BEGIN {
+  unshift @INC, "$ENV{HOME}/local/share/perl";
+}
+
+# A PlexTree class that implements a string read from the terminal
+# This is primarily meant to be serve as input and continuation-callback
+# for the PlexTree::Text::textdec parser.
+package Prompt;
+
+use strict;
+use warnings;
+use PlexTree;
+
+our @ISA = ('PlexTree');
+
+# Constructor
+sub new {
+    my ($this, $prompt, $contprompt) = @_;
+    my $term = new Term::ReadLine 'ptsh';
+
+    # Override the default ornamentation (underlined prompt)
+    $term->Attribs->{'term_set'} = ['', '', '', ''];
+
+    my $data = { term => $term };
+    $data->{'prompt'}     = defined $prompt     ? $prompt     : '> ';
+    $data->{'contprompt'} = defined $contprompt ? $contprompt : '- ';
+
+    return bless [ undef, undef, { }, undef, $data ] => $this;
+}
+
+# Ask for a new string
+sub prompt {
+    my ($self, $more) = @_;
+    my $data = $self->[4];
+    my $line;
+    if (-t STDIN) {
+	# we read from a tty
+	$line = $data->{'term'}->
+	    readline($data->{$more ? 'contprompt' : 'prompt'});
+    } else {
+	$line = <>;
+    }
+    if ($more) {
+	if (defined $line) {
+	    $data->{'s'} .= "\n" if -t STDIN;
+	    $data->{'s'} .= $line;
+	}
+    } else {
+	$data->{'s'} = $line;
+    }
+    return $line;
+}
+
+# Which output terminal should be used?
+sub fout() {
+    return $_[0]->[4]->{'term'}->OUT || \*STDOUT;
+}
+
+sub str {
+    my ($self, $pos, $len) = @_;
+    my $data = $self->[4];
+
+    if (defined $pos && !defined $len && $pos == $self->len) {
+	# Interpret a read exactly beyond the end as a request to
+	# read a continuation line and append it to the string
+	return $self->prompt(1);
+    }
+
+    return $data->{'s'}                 if (@_ == 1);
+    return substr($data->{'s'}, $pos)   if (@_ == 2);
+    return substr($data->{'s'}, $pos, $len);
+}
+
+sub setstr {
+    my ($self, $s, $pos, $len) = @_;
+    my $data = $self->[4];
+
+    die("parameters not supported") unless @_ == 2;
+    $data->{'s'} = $s;
+    return;
+}
+
+sub tag { defined $_[0]->[4]->{'s'}; }
+
+package main;
+
+use strict;
+use warnings;
+
+use PlexTree;
+use PlexTree::Text;
+use PlexTree::FileSys;
+use PlexTree::SGML;
+use Term::ReadLine;
+
+my $OUT = \*STDOUT;  # the standard output for printing results
+my $c;               # our main compound
+
+# receives a compount that contains a CRF-T string and parses it
+# into a compound, which it returns (input may be a prompt that can ask
+# for more lines if necessary)
+sub parse_compound {
+    my ($p, $src) = @_;
+    my $c;
+    if (!defined eval {
+	# parse input
+	$c = $p->cd(ctrl('textdec'))->newroot;
+    }) {
+	if ($@->isa('PlexTree')) {
+	    print STDERR $@->print_error($src);
+	} else {
+	    print STDERR $@;
+	}
+	return;
+    }
+    return $c;
+}
+
+# execute a command line stored in the string of compound $p
+# (if $p is a Prompt, this allows for requesting additional lines)
+sub execute_command {
+    my ($p) = @_;
+    my $s = $p->str;
+    $s =~ s/^\s*//;
+    return if $s eq '';
+    $s =~ s/(\S+)\s*//;
+    my $cmd = $1;
+    $p->setstr($s);
+    if ($cmd =~ /^h(elp)?$/) {
+	print $OUT "Supported commands:\n\n";
+	print $OUT "  help\n";
+	print $OUT "  echo <compound>\n";
+	print $OUT "  query <compound>\n";
+	print $OUT "  string <compound>\n";
+	print $OUT "  ls <compound>\n";
+	print $OUT "\n";
+    } elsif ($cmd =~ /^q(?:uery)?|s(?:trings)?|ls$/) {
+	my $q;
+	if ($p->len > 0) {
+	    $q = parse_compound($p);
+	} else {
+	    $q = PlexTree->new;
+	}
+	if (defined $q) {
+	    if (!$q->ispath && !$q->isempty) {
+		# if the entered compound is not a path, then
+		# interpret it as a key of a single-level path
+		$q->selftokey;
+	    }
+	    if ($cmd =~ /^ls$/) {
+		my $ls = ctrl('ls');
+		foreach my $l ($q->leaves) {
+		    $l->addkey($ls);
+		}
+	    }
+	    my $res = PlexTree->new;
+	    my $err = PlexTree->new;
+	    # print copy of the main compound and query
+	    # print $OUT ". " . $c->print(oneline => 1) . "\n";
+	    # print $OUT "? " . $q->print(oneline => 1) . "\n";
+	    $c->query($q, $res, $err);
+	    $res = $res->raw;
+	    # print result
+	    if ($cmd =~ /^s/) {
+		# output the raw leaf strings
+		print $OUT join('', map { $_->str; } $res->leaves);
+	    } else {
+		# print the result compound
+		print $OUT $res->print(oneline => 1) . "\n";
+	    }
+	    # print error messages
+	    map {
+		print $OUT "! $_";
+	    } $err->print_error;
+	}
+    } elsif ($cmd =~ /^e(cho)?$/) {
+	my $q = parse_compound($p);
+	print $OUT $q->print(oneline => 1) . "\n" if defined $q;
+    } elsif ($cmd =~ /^E(cho)?$/) {
+	my $q = parse_compound($p);
+	print $OUT $q->print(oneline => 1, nonempty => 1, nopath => 1) . "\n"
+	    if defined $q;
+    } elsif ($cmd =~ /^D(ebug)?$/) {
+	my $q = parse_compound($p);
+	print $OUT $q->debug("q") if defined $q;
+    } else {
+	print STDERR "Unknown command '$cmd', try 'help'.\n";
+    }
+}
+
+# main program
+
+my $usage = <<'EOT';
+PlexTree Shell -- Markus Kuhn -- 2006
+
+usage:
+  ptsh [options]
+
+options:
+  -s text      preload the provided CRF-T encoded compound
+  -e text      execute the provided command line
+
+For a list of commands, type help.
+EOT
+
+my @commands; # for storing command lines provided by option -e
+
+# parse command-line arguments
+while (@ARGV) {
+    if ($ARGV[0] eq '-s') {
+	shift @ARGV;
+	die("Missing argument after option -s!\n") unless @ARGV;
+	$c = parse_compound(text(shift @ARGV));
+    } elsif ($ARGV[0] eq '-e') {
+	shift @ARGV;
+	die("Missing argument after option -e!\n") unless @ARGV;
+	push @commands, shift(@ARGV);
+    } else {
+	die($usage);
+    }
+}
+
+# read initial compound
+if (!defined $c) {
+    for my $fn ( "$ENV{HOME}/.ptinit", "/etc/ptinit" ) {
+	if ( -f $fn && -r $fn ) {
+	    open(F, "<:utf8", $fn) || die("Cannot open init file '$fn': $!\n");
+	    my $s;
+	    while (<F>) { $s .= $_; }
+	    if (!defined eval {
+		$c = c($s);
+	    }) {
+		if ($@->isa('PlexTree')) {
+		    print STDERR $@->print_error($fn);
+		} else {
+		    print STDERR $@;
+		}
+	    }
+	    last;
+	}
+    }
+}
+
+$c = PlexTree->new unless defined $c;
+
+if (@commands) {
+    # execute the command lines provided via option -e
+    while (@commands) {
+	execute_command(text(shift(@commands)));
+    }
+} else {
+    # interactive main loop
+    my $p = new Prompt;
+    $OUT = $p->fout;
+    while (defined $p->prompt) {
+	execute_command($p);
+    }
+    print "\n" if -t STDIN;
+}

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<?perl
+    # generate ucampas default <head> element and add stylesheet URLs
+    my $stylesheets_url = $cur->param('stylesheets_url');
+    my $head =
+        ucampas_head($cur, $src,
+		     c('*link(rel=stylesheet, type="text/css", media=screen)')
+		     ->setatt('href', NavTree::rurl($stylesheets_url .
+						    'plain-crest.css', $cur)));
+    $c->insert($head);
+?>
+<body>
+<!-- breadcrumbs -->
+<div id="bread">
+<?perl $c->insert(breadcrumbs($cur, includecur => 1,
+                              separator => text(' > '))); ?>
+</div>
+<!-- end breadcrumbs -->
+
+
+<!-- body text -->
+
+<?perl
+    # navigation
+    my $content;
+    if ($cur->param('navbar')) {
+	# build navigation table
+	my $navbar = navbar($cur, undef,
+			    topopen     => 1,
+			    forwardopen => 1,
+			    class       => 'navmenu' );
+	if (defined $navbar) {
+	    # set up table for two large rule-separated columns
+	    # (left navigation information, right content)
+	    $content=c('*table(id=container, summary="page content",
+                               *tr(*td(class=leftnav,
+                                       *div(class=navlist)),
+                                   *td(class=content,
+                                       *a(name=startcontent,
+                                          id=startcontent))))');
+	    $content->cd('.l(*div(class=navlist))')
+		->append->move($navbar);
+	} else {
+	    warn " you requested a navbar, but the navigation tree is empty\n";
+	}
+    }
+    if (!defined $content) {
+	# no navigation table
+	$content = c('*div(id=content, *a(name=startcontent,
+                                          id=startcontent))');
+    }
+    $content = $c->insert->move($content);
+    # insert body
+    if (my $body = $src->cd('.l(*body)')) {
+	$content->cd('.l(*a(id=startcontent))')->parent
+	    ->copyfrom_list($body);
+    }
+?>
+
+<!-- end contents -->
+<!-- footer -->
+<div id="bottombgline">&nbsp;</div>
+<hr />
+<?perl
+{
+    # left-hand side footer
+    my $organization = $cur->param('organization');
+    my $lastmod = $cur->get('svndate') || $cur->get('mtime_iso_local');
+    my $ownername = $cur->get('svnauthor') || $cur->get('ownergcos');
+    my $footer = c('*p(class=footer)');
+    # copyright notice
+    my $copyright_year = $cur->param('copyright_year');
+    $copyright_year = substr($lastmod, 0, 4) unless defined $copyright_year;
+    my $copyright_holder = $cur->param('copyright_holder');
+    if (!defined $copyright_holder) {
+	$copyright_holder = "University of Cambridge";
+	if (defined $organization &&
+	    $organization ne 'University of Cambridge') {
+	    $copyright_holder = "$organization, $copyright_holder";
+	}
+    }
+    $footer->append(text "© $copyright_year $copyright_holder")
+	unless $copyright_holder eq '';
+    # contact details for comments
+    my $webmaster = $cur->paramc('webmaster');
+    if (defined $webmaster) {
+	my $webmaster_name  = $webmaster->get('name');
+	my $webmaster_url   = $webmaster->get('url');
+	my $webmaster_email = $webmaster->get('email');
+	$webmaster_name = $webmaster_email
+	    if !defined $webmaster_name;
+	$webmaster_url = "mailto:$webmaster_email"
+	    if !defined $webmaster_url and defined $webmaster_email;
+	if ($webmaster_name) {
+	    $footer->append('*br') if $footer->listlen;
+	    $footer->append(text "Please send any comments on this page to ");
+	    my $l = $footer->append;
+	    if ($webmaster_url) {
+		$l->set('*a')->addkey('href', text $webmaster_url);
+		$l = $l->append;
+	    }
+	    $l->set(text $webmaster_name);
+	}
+    }
+    # Last modified notice and hidden edit link
+    $footer->append('*br') if $footer->listlen;
+    if (0) {
+	$footer->append(text "Last ");
+	my $editurl;
+	if (defined($editurl = $cur->param('edit_url'))) {
+	    $footer->append(c('*a(accesskey=m)')->append(text "modified")
+			    ->setatt('href', $editurl)
+			    ->setatt('style', 'color: black;'));
+	} else {
+	    $footer->append(text "modified");
+	}
+	$footer->append(text " $lastmod by $ownername");
+    } else {
+	my $srcfile = $src->get(c('.l(*head)',
+				  '.l(*meta(name="ucampas-sourcefile"))',
+				  'content'));
+	if (defined $srcfile) {
+	    $srcfile = $cur->apath('dir') . $srcfile;
+	} else {
+	    $srcfile = $cur->apath('srcfile');
+	}
+	$footer->append(text "Page last ",
+			c('*a(class=hidden, accesskey=m)')
+			->setatt('href' => '/cgi/edit/draft?p=' . $srcfile .
+				 '&r=' . $cur->apath)
+			->append(text 'modified:'),
+			text ' ' . $cur->get('mtime_iso_local'))
+            if $cur->param('lastmod');
+    }
+    $c->insert($footer);
+    # add small links (policy, etc.) to right-hand side footer
+    my $footlinks = $cur->paramc('footlinks');
+    if (defined $footlinks) {
+	my $rfooter = c('*p(class=rfooter)');
+	my $i;
+	foreach my $p ($cur->paramc('footlinks')->list) {
+	    $rfooter->append(text ' | ') if $i++;
+	    $rfooter->append(c('*a')->copyfrom_sub($p));
+	}
+	$c->insert($rfooter);
+    }
+}
+?>
+<!--  end footer -->
+</body>
+</html>

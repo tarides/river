@@ -1,0 +1,2 @@
+navstop=1,
+avsm.html,mycroft.html,iml.html,crowcroft.html,amirmc.html,lpw25.html,yallop.html,pwang.html,stedolan.html,balrajsingh.html,heidi.html,raphael.html,smh.html,haris.html,vsevolod.html,griffin.html,rwatson.html,alib.html,bogdan.html,sheets.html,gparisis.html,euan.html,djs.html,vb.html,jludlam.html,lars.html,yaron.html,shinwell.html,tg.html,pierre.html,louis.html,fabrice.html,xleroy.html,mac.html,mort.html,ashish.html,christophe.html,gabor.html,jhickey.html,xclerc.html,dbunzli.html,vbotbol.html,kaloper.html,hannes.html,greg.html

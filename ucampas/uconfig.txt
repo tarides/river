@@ -1,0 +1,13 @@
+organization="Computer Laboratory",
+style=ucam2008(blue),
+stylesheets_url="http://www.cl.cam.ac.uk/style/",
+images_url="http://www.cl.cam.ac.uk/images/",
+change_check=1,
+umask='0002',
+search=google(domains="cam.ac.uk;www.cl.cam.ac.uk",
+              sitesearch="www.cl.cam.ac.uk"),
+headlinks=(
+  ("Contact us", href="http://www.cl.cam.ac.uk/contact/"),
+  ("A–Z", href="http://www.cl.cam.ac.uk/az/"),
+  ("Advanced search", href="http://www.cl.cam.ac.uk/search/"),
+),

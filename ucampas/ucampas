@@ -1,0 +1,1593 @@
+#!/usr/bin/perl
+# ucampas -- University of Cambridge web page augmentation system
+#
+# Generate decorated HTML files with site-navigation menus from
+# simple bare-bone HTML files
+#
+# http://www.cl.cam.ac.uk/local/web/ucampas/
+#
+# Markus Kuhn -- http://www.cl.cam.ac.uk/~mgk25/
+#
+# This script converts a bare-bones file "filename-b.html" into
+# one augmented with house-style decoration and navigation information,
+# called "filename.html".
+# 
+# Simply calling this script in the current working directory will
+# read index-b.html and produce index.html. This is equivalent to
+# calling "ucampas index". One or more other base filenames can also be
+# specified.
+#
+# Starting from the directory of the source file, this script will
+# move higher up in the directory tree as long as it finds a configuration
+# file "uconfig.txt" in each directory. It will then parse the entire
+# subdirectory tree for such config files in order to build up a
+# tree of documents for navigation.
+#
+# The uconfig.txt files contain foremost a comma-separated list of
+# filenames or subdirectories. This list defines the relative order in
+# which these files and subdirectories will appear as children of the
+# current directory in the navigation tree.
+
+# this software requires Perl 5.8.1 or newer
+require 5.008_001;
+
+use strict;
+use Data::Dumper;   # for debugging
+use FindBin qw($RealBin);     # find directory where this file is located ...
+use lib $RealBin, "$RealBin/perl-PlexTree";     # ... and add it to @INC
+use NavTree;
+use PlexTree;
+use PlexTree::SGML;
+use HTTP::Date; # for parsing RSS newsfeed dates
+use POSIX qw(strftime);
+
+my $embedded_perl = 0;
+my $quiet = 0;
+
+# Execute a shell script and abort if the return value signals a failure
+sub execute {
+    my ($cmd) = @_;
+    my ($r, @r);
+
+    if (wantarray) { @r = `$cmd`; } else { $r = `$cmd`; }
+    if ($? != 0) {
+	if ($cmd =~ /pngtopnm/ && $? != 1) {
+	    # we are fine, no idea why that return value appears
+	    # with this particular tool (@!$%)
+	} else {
+	    die("Command failed (return " . ($? >> 8) . ", signal " .
+		($? & 127) . ($? & 128 ? ", core dumped" : '') . "): '$cmd'\n");
+	}
+    }
+    if (wantarray) { return @r; } else { return $r; }
+}
+
+# Extract elements such as 'title' or 'body' from a HTML file
+sub html_extract {
+    my ($fn, $element, $part, $optional) = @_;
+    my ($html, $content, $all);
+
+    return undef unless open(IN, '<', $fn);
+    while (<IN>) {
+	$html .= $_;
+	last if $. > 20 && $element eq 'title';
+    }
+    close(IN);
+    # extract element
+    if ($html =~ /(<$element(?:[^>]*)>\s*(.*?)\s*<\/$element>(?:\n)?)/is) {
+	$all = $1;
+	$content = $2;
+	#print "'$content'\n";
+    } else {
+	print("$fn: no <$element> element found\n")
+	    unless defined $optional;
+    }
+    return $all if $part eq 'element';
+    return $content;
+}
+
+# Look for image file img-$in.* and if it exists, return <img ...> element
+sub image($$) {
+    my ($cur, $in) = @_;
+    my $dir = $cur->fpath;  # where are we in filespace?
+    $dir =~ s/[^\/]+\z//;    # strip off any filename
+    $dir = '' if $dir eq './';
+    my ($path) = glob("${dir}img-$in.*");
+    my $alt;
+    my @size;
+    
+    if ($path) {
+	my $fn = substr($path, length($dir));
+	# extract pixel size and comment from image file
+	if ($path =~ /.jpg\z/i) {
+	    my $t = execute("rdjpgcom -verbose '$path'");
+	    if ($t =~ /.*JPEG image is (\d+)w \* (\d+)h.*/s) {
+		@size = ($1, $2);
+	    }
+	    $alt = execute("rdjpgcom '$path'");
+	    chomp($alt);
+	} elsif ($fn =~ /.(gif|png)\z/i) {
+	    my $t = execute("$1topnm < '$path' 2>/dev/null");
+	    if ($t =~ /^P\d\n(?:\#[^\n]*\n)*(\d+)\s+(\d+)\s/s) {
+		@size = ($1, $2);
+	    }
+	}
+	# allow for comment override via img$in symlink
+	$alt = readlink("${dir}img-$in") if -l "${dir}img-$in";
+	$alt = '' unless defined $alt;
+	#return "<img src=\"$fn\" width=\"$size[0]\" height=\"$size[1]\" " .
+	#  "alt=\"$alt\">" if @size;
+	#return "<img src=\"$fn\" alt=\"$alt\">";
+	my $img = c('*img')->setatt('src', $fn, 'alt', $alt);
+	if (@size) {
+	    $img->setatt('width', $size[0], 'height', $size[1]);
+	}
+	return $img;
+    }
+    return;
+}
+
+#
+# standard generator for <head> element used by several styles
+#
+sub ucampas_head {
+    my ($cur, $src, @additional_elements) = @_;
+    my $head = meta('head');
+
+    # charset and CSS
+    $head->append('*meta(http-equiv="Content-Type",
+                   content="text/html; charset=UTF-8")');
+    $head->append('*meta(http-equiv="Content-Style-Type",
+                   content="text/css")');
+    # page title
+    my $title = $cur->get('title');  # to allow override from uconfig.txt
+    unless (defined $title) {
+	$title = $src->cd('.l(*html)', '.l(*head)', '.l(*title)');
+	$title = $title->getl(0) if defined $title;
+    }
+    # $title = $cur->title unless defined $title; # does this add anything?
+    my $organization = $cur->param('organization');
+    my $section = $cur->param('section');
+    if (defined $organization && index(lc($title), lc($organization)) < 0) {
+	my $orgsection = $organization;
+	$orgsection .= ' – ' . $section
+	    if defined $section && index(lc($title), lc($section)) < 0;
+	$title = $orgsection . ': ' . $title;
+    }
+    $head->append(c('*title')->append(text $title));
+    # insert other head elements provided as arguments
+    foreach my $e (@additional_elements) {
+	$head->append->move($e);
+    }
+    # copy other head elements from source document
+    my $src_head = $src->cd('.l(*html)', '.l(*head)');
+    if (defined $src_head) {
+	foreach my $h ($src_head->list) {
+	    next unless $h->tag == META;
+	    my $element = $h->str;
+	    next if $element eq 'title';
+	    if ($element eq 'meta') {
+		next if $h->get('"http-equiv"') =~ /^Content-Type\z/i;
+		next if $h->get('name') =~ /^ucampas-/;
+	    }
+	    next if $element eq 'style' && $cur->param('discard_style');
+	    $head->append($h);
+	}
+    }
+    # navlinks
+    my $n;
+    if (defined($n = $cur->preorder_next_visible)) {
+	$head->append(c('*link(rel=Next)')
+		      ->setatt('href', $n->rurl($cur)));
+    }
+    $n = $cur->parent;
+    while (defined $n && $n->get('nopage')) {
+	$n = $n->parent;
+    }
+    if (defined $n) {
+	$head->append(c('*link(rel=Up)')
+		      ->setatt('href', $n->rurl($cur)));
+    }
+    # add spyware (Google Analytics)
+    my $google_analytics_token = $cur->param('google_analytics'); # e.g. 'UA-1234567-1'
+    if ($google_analytics_token) {
+	$head->append(c('*script(type="text/javascript")')
+		      ->append(text 'var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src=\'" + gaJsHost + "google-analytics.com/ga.js\' type=\'text/javascript\'%3E%3C/script%3E"));'));
+	$head->append(c('*script(type="text/javascript")')
+		      ->append(text
+			       'try { var pageTracker = _gat._getTracker("'.
+			       $google_analytics_token.
+			       '"); pageTracker._trackPageview(); } catch(err) {}'));
+    }
+
+    return $head;
+}
+
+my %template;
+
+#
+# Style templates
+#
+
+#
+# Default plain style
+#
+
+$template{undef} = $template{''} =
+    <<'====================EOT====================';
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<?perl
+    # generate ucampas default <head> element
+    $c->insert(ucampas_head($cur, $src));
+    # copy over any <head> attributes
+    my $h = $src->cd('.l(*html)', '.l(*head)');
+    $out->cd('.l(*html)', '.l(*head)')->copyfrom_dir($h) if defined $h;
+    # copy body
+    $c->insert($src->cd('.l(*body)'));
+?>
+</html>
+====================EOT====================
+
+
+# Recursively traverse navigation tree and output nested <ul> (or <table>)
+# of titles and links.
+#
+# Arguments:
+#
+#  $cur                 current position in the tree
+#  $start               what root do we start from (default: $cur->top)
+#  parameters, ...
+#
+# Parameter list:
+#
+#  'topopen' => ...     how many layers downwards from the top do we show
+#                       (undef -> show full site map)
+#  'forwardopen' => ... how deep below the current position do we go
+#  'class' => ...       class attribute value of <ul>
+#  'style' => ...       style attribute value of <ul>
+#  'table' => 1         use <table> instead of <ul>, <tr> instead of <li>,
+#                       and <td> instead of <div>
+#  'markswitch' => ...  subroutine called with pointers to <li> and <a>
+#                       compounds for all entries that lead to a page
+#                       with a different navigation tree representation
+#  'markcurrent' => ... similar subroutine called for entry that leads
+#                       to $cur
+#  'markonpath' => ...  similar subroutine called for ancestor entry that
+#                       is on the path to $cur
+#  'marklink' => ...    similar subroutine called if entry is a *link
+#  'showinvisibles' => ...  if set, show in the navigation list even nodes
+#                           who have an 'invisible' attribute larger than 0
+#                           but not larger than the value of showinvisibles
+#  'navtopinclude' => ...   overrides the node attribute of the same name
+#  'maxdepth' => ...        maximum allowed nesting level of result,
+#                           prune result if recursion attempts to go deeper
+#  'maxdepthretry' => 1     issue a warning if the navigation tree had to
+#                           be pruned due to maxdepth (suggesting
+#                           that a design limit of the style template was
+#                           reached) and retry to start from further down
+#  'flat' => 1          prevent recursion beyond first level (e.g. for tabs)
+#
+# Node attributes that affect the behavior of this function:
+#
+#  invisible=1          make navlinks to this page invisible (unless
+#                       the this page is the current page and has visible
+#                       children, in which case we need to keep the page
+#                       visible such that the children also become visible)
+#  navtopinclude=1      prefix the top-level list with $start
+#  navtopinclude='text' prefix the top-level list with $start and use
+#                       the provided string as the navtitle
+#  navstop=1            do not recurse beyond this point, for example because
+#                       nother in-page navigation (tabs, subnode list)
+#                       takes over from here
+#
+sub navbar {
+    my ($cur, $start, %p) = @_;
+    my $maxdepth_warned;
+
+    $p{'domain'} = 'nav' unless defined $p{'domain'};
+
+    unless (defined $start) {
+	$start = $cur->paramn($p{'domain'} . 'top');
+	if (defined $start) {
+	    # navtop values > 1 place set $start to an ancestor
+	    my $n = int($start->get($p{'domain'} . 'top'));
+	    $start = $start->up($n-1) if $n > 1;
+	}
+    }
+    $start = $cur->top unless defined $start;
+    $p{$p{'domain'} . 'topinclude'} = $start->param($p{'domain'} . 'topinclude')
+	unless defined $p{$p{'domain'} . 'topinclude'};
+    while (defined $start) {
+	my $ul = eval {
+	    _navbar($cur, $start, $cur->depth, $start->depth, \%p);
+	};
+	return $ul if $@ eq '';
+	if ($@ eq "maxdepth exceeded\n") {
+	    # the navigation bar got too deep, try again from further down
+	    warn("\nWarning: a navigation bar nested >" .
+		 $p{'maxdepth'} .
+		 " levels deep is not supported by the style.\n" .
+		 "Please flatten it by adding $p{'domain'}top=1 attributes.\n")
+		unless $maxdepth_warned++;
+	    $start = $start->nextonpathto($cur);
+	    warn("Retrying with $p{'domain'}top at " . $start->dpath . ".\n")
+		if defined $start;
+	} else {
+	    die($@);
+	}
+    }
+    warn("Generating a navigation bar failed!\n");
+}
+
+# Similar to navbar, but instead of returning a nested <ul> tree, it
+# appends to $container a sequence of <ul> elements that represent the
+# various nesting levels, which is more suitable for rendering as
+# multiple rows of tabs.
+sub append_navtabs {
+    my ($container, $cur, $start, %p) = @_;
+    # change the domain parameter to 'tab' if you want to use
+    # tabtop/tabtopinclude instead of navtop/navtopinclude, e.g.
+    # because there are two types of menues called 'nav' and 'tab'
+    # on a page.
+    $p{'domain'} = 'nav' unless defined $p{'domain'};
+
+    unless (defined $start) {
+	$start = $cur->paramn($p{'domain'} . 'top');
+	if (defined $start) {
+	    # navtop values > 1 place set $start to an ancestor
+	    my $n = int($start->get($p{'domain'} . 'top'));
+	    $start = $start->up($n-1) if $n > 1;
+	}
+    }
+    $start = $cur->top unless defined $start;
+    $p{'navtopinclude'} = $start->param($p{'domain'} . 'topinclude')
+	unless defined $p{'navtopinclude'};
+    $p{'flat'} = 1;
+    for (my $c = $start; defined $c; $c = $c->nextonpathto($cur)) {
+	$container->append(_navbar($cur, $c, $cur->depth, $start->depth, \%p));
+	$p{navtopinclude} = 0;
+    }
+}
+
+# Auxiliary function used in _navbar that retrieves only the list
+# elements that will actually be visible in the navbar. A node is
+# invisible if the numeric value of its 'invisible' attribute exceeds
+# $showinvisibles. However, if such a node is on the path to the
+# current node, it remains visible. An invisible node is only visible
+# on its own navbar if it has visible subnodes. This may sound
+# complicated, but this heuristic seems to do just what one usually
+# wants to achieve on a website with where some pages are invisible on
+# the navtree.
+sub _visiblelist {
+    my ($cur, $start, $showinvisibles) = @_;
+    $showinvisibles ||= 0; # convert undef to 0
+    return () unless defined $start;
+    my @list = grep {
+	($_->get('invisible') || 0) <= $showinvisibles ||
+	    ($_->isonpathto($cur) &&
+	     ($_->nid ne $cur->nid ||
+	      _visiblelist($cur, $_, $showinvisibles)))
+    } $start->list;
+    return @list;
+}
+
+# recursive auxiliary function for navbar that does the actual work
+#  $cur                 current position in the tree, as provided to navbar()
+#  $this                root of the subtree to be generated recursively
+#  $curdepth            $cur->depth (cached)
+#  $startdepth          depth of the $start argument to navbar()
+sub _navbar {
+    my ($cur, $this, $curdepth, $startdepth, $p) = @_;
+
+    my @list = _visiblelist($cur, $this, $p->{'showinvisibles'});
+    return undef unless @list;
+    my $domain = $p->{'domain'};
+    my $navtopinclude = defined $p->{"${domain}topinclude"} ?
+	$p->{"${domain}topinclude"} : $cur->param("${domain}topinclude");
+    if ($this->depth eq $startdepth && $navtopinclude) {
+	# include link to home page at the start of the navbar
+	unshift @list, $this;
+    }
+    my $ul = c('*ul');
+    $ul->set(c('*table')) if $p->{'table'};
+    $ul->setatt('class', $p->{'class'}) if defined $p->{'class'};
+    $ul->setatt('style', $p->{'style'}) if defined $p->{'style'};
+    foreach my $c (@list) {
+	my $islink = ($c->tag == META && $c->str == 'link');
+	my $li = $ul->append->set('*li');
+	$li->set(c('*tr')) if $p->{'table'};
+	my $div = $li->append->set('*div');
+	$div->set(c('*td')) if $p->{'table'};
+	my $a = $div->append->set('*a')->setatt('href', $c->rurl($cur));
+	my $navtitle = $c->navtitle || '[no title found]';
+	if ($c->nid eq $this->nid && $navtopinclude ne '1') {
+	    $navtitle = $navtopinclude;
+	}
+	$a->append(text($navtitle));
+	my $isonpathto = $c->isonpathto($cur);
+	if ($c->nid eq $cur->nid || 
+	    ($isonpathto && $c->get("${domain}stop"))) {
+	    # this item links to the current page
+	    # (or is as close as we can get if navstop=1)
+	    &{$p->{'markcurrent'}}($li, $div, $a) if $p->{'markcurrent'};
+	} elsif ($isonpathto && $c->nid ne $this->nid) {
+	    # this item links to a page that is on the navigation
+	    # path to the current one (excluding a navtopinclude node)
+	    &{$p->{'markonpath'}}($li, $div, $a) if $p->{'markonpath'};
+	}
+	if ($c->get("${domain}top") || !$c->param('navbar') || $islink ||
+	    $c->str =~ /\.(?:pdf|doc)\z/i) {
+	    # the page linked will have a different navigation tree
+	    &{$p->{'markswitch'}}($li, $div, $a) if $p->{'markswitch'};
+	}
+	if ($islink) {
+	    # the pages is (possibly) not a navtree child
+	    &{$p->{'marklink'}}($li, $div, $a) if $p->{'marklink'};
+	    next;
+	}
+	# recurse into child nodes
+	next if $p->{'flat'}; # don't recurse, e.g. for producing tabs
+	next if $c->get("${domain}stop"); # stop, e.g. because we switch to tabs
+	my $cdepth = $c->depth;
+	my $rdepth = $cdepth - $curdepth;
+	my $sdepth = $cdepth - $startdepth;
+	if (defined $p->{'maxdepth'} && $sdepth > $p->{'maxdepth'}) {
+	    die("maxdepth exceeded\n") if defined $p->{'maxdepthretry'};
+	    next;
+	}
+	next if $sdepth == 0; # don't recurse into navtopinclude node
+	if (($isonpathto || 
+	     !defined $p->{'topopen'} || $sdepth < $p->{'topopen'} ||
+	     ($cur->isonpathto($c) && $rdepth < $p->{'forwardopen'}))
+	    && defined(my $sub = _navbar($cur, $c,
+					 $curdepth, $startdepth, $p))) {
+	    $li->append($sub);
+	}
+    }
+    return $ul;
+}
+
+# Output the path to the current position in the navigation tree
+# as a sequence of links. By default, the result is a <p> element.
+#
+# Arguments:
+#
+#  $cur                 current position in the tree
+#  parameters, ...
+#
+# Parameter list:
+#
+#  'separator'  => ...  what to insert between links (e.g., text(' > '))
+#  'ul'         => 1    output <ul> instead of default <p> element
+#  'includecur' => 1    finish with the current page (rather than its parent)
+#  'class'      => ...  class of <p> or <ul>
+#  'id'         => ...  id of <p> or <ul>
+#  'firstclass' => ...  class of first <li>
+#  'divclass'   => ...  class of encapsulating <div>
+#  'nonempty'   => 
+sub breadcrumbs {
+    my ($cur, %p) = @_;
+    my $i = 0;
+    my $bc;
+    if ($p{'ul'}) {
+	$bc = c('*ul');
+    } else {
+	$bc = c('*p');
+    }
+    if ($cur->param('breadcrumbs')) {
+	my $start = $cur->paramn('breadcrumbtop');
+	unless (defined $start) {
+	    $start = $cur->top;
+	    my $prefix = $cur->paramc('breadcrumbprefix');
+	    if (defined $prefix) {
+		foreach my $c ($prefix->list) {
+		    if ($i++ > 0 && exists $p{'separator'}) {
+			$bc->append($p{'separator'});
+		    }
+		    my $crumb = c('*a')->copyfrom_sub($c);
+		    $crumb = c('*li')->append($crumb) if $p{'ul'};
+		    $bc->append($crumb);
+		}
+	    }
+	}
+	my @path = $cur->path;
+	shift @path while @path && $path[0]->nid != $start->nid;
+	pop @path if @path && !$p{'includecur'};
+	foreach my $c (@path) {
+	    if (defined $cur->cd('breadcrumbtop')) {
+		# make this the first breadcrumb
+		$bc->clear_list;
+		$i = 0;
+	    }
+	    my $title = $c->navtitle;
+	    next unless defined $title;
+            next if $c->get('breadcrumbskip');
+	    if ($i++ > 0 && exists $p{'separator'}) {
+		$bc->append($p{'separator'});
+	    }
+	    my $crumb = text($title);
+	    my $url = $c->rurl($cur);
+	    $crumb = c('*a')
+		->addkey('href', text($url))
+		->append($crumb) if defined $url;
+	    $crumb = c('*li')->append($crumb) if $p{'ul'};
+	    $bc->append($crumb);
+	}
+    }
+    if ($bc->listlen == 0) {
+	return undef if $p{'nonempty'};
+        # preserve breadcrumb space even if none are shown
+        $bc->append(text(' ')) unless $p{'ul'};
+    } elsif (exists $p{'firstclass'}) {
+	$bc->cl(0)->setatt('class', $p{'firstclass'});
+    }
+    $bc->setatt('class', $p{'class'}) if exists $p{'class'};
+    $bc->setatt('id', $p{'id'}) if exists $p{'id'};
+    $bc = c('*div')
+	->append($bc)
+	->setatt('class', $p{'divclass'}) if exists $p{'divclass'};
+    return $bc;
+}
+
+# Add index.html to all relative HREF links in
+# A and LINK elements of an HTML document
+sub add_index($) {
+    my ($html, $index_fn) = @_;
+
+    $index_fn = 'index.html' unless defined $index_fn;
+    foreach $a ($html->lfind('*link', 'all'), $html->lfind('*a', 'all'),
+		$html->lfind('*area', 'all')) {
+	my $href = $a->cd('href');
+	next unless defined $href && $href->tag == TEXT();
+	my $path = $href->str;
+	next if $path =~ /^[a-z]+:/; # this is already a full URL
+	my $fragment;
+	$fragment = $1 if $path =~ s/(\#[^\/]*)\z//;
+	if ($path eq '.' || $path eq './') {
+	    $path = $index_fn . $fragment;
+	} elsif ($path eq '..') {
+	    $path .= '/' . $index_fn . $fragment;
+	} elsif ($path =~ /\/\z/) {
+	    $path .= $index_fn . $fragment;
+	} else {
+	    next;
+	}
+	$href->setstr($path);
+    }
+
+    return $html;
+}
+
+sub apply_style($$$$) {
+    my ($cur, $src, $style, $notes) = @_;
+
+    # process Perl instructions embedded in source
+    foreach my $c ($src->lfind('+perl', 'all')) {
+	if ($embedded_perl) {
+	    # execute script
+	    eval $c->getl(0);
+	    if ($@ ne '') {
+		die "Error in source <?perl?> script: " .
+		    PlexTree::print_error($@) . "\n" .
+		    $c->getl(0) . "\n";
+	    }
+	}
+	# remove the script from the tree
+	$c->cut;
+    }
+
+    my $template_fn = "template for style='$style'";
+    if (!defined $template{$style}) {
+	# attempt to read in the template file
+	my $f;
+	$template_fn = "$RealBin/templates/$style.html";
+	if ($style !~ /^\w*\z/) {
+	    die("Invalid style value '$style'\n")
+	}
+	open($f, '<', $template_fn)
+	    or die "$template_fn: cannot read this style file: $!\n";
+	local $/; # enable "slurp" mode
+	$template{$style} = <$f>;
+	close $f;
+    }
+    my $out;
+    eval {
+	$out = text($template{$style})->cd(ctrl('sgmldec'))->newroot;
+    };
+    if ($@ ne '') {
+	die PlexTree::print_error($@, $template_fn);
+    }
+
+    # preserve prescript
+    if (defined $src->cd(meta 'prescript')) {
+	$out->addkey(meta 'prescript')->copyfrom($src->cd(meta 'prescript'));
+    }
+
+    # process Perl instructions embedded in template
+    foreach my $c ($out->lfind('+perl', 'all')) {
+	# execute script
+	#print "================\n".$c->getl(0);
+	eval $c->getl(0);
+	if ($@ ne '') {
+	    die "Error in template <?perl?> script: " .
+		PlexTree::print_error($@) . "\n" .
+		$c->getl(0) . "\n";
+	}
+	# remove the script from the tree
+	$c->cut;
+    }
+
+    # process various <div class="ucampas-..."> elements and transform
+    # them automatically into some feature (table of contents, etc.)
+    my $toc;
+  DIV:
+    foreach my $div ($out->lfind('*div', 'all')) {
+	my $class = $div->get('class');
+	my @features = grep s/^ucampas-([a-z0-9-]+)\z/$1/, split(/\s+/, $class);
+	next unless @features;
+	warn("More than one ucampas feature requested in <div class='$class'>\n")
+	    if @features > 1;
+	my $feature = @features[0];
+	my $p;
+	my $content = $div->cl(0);
+	if (defined $content) {
+	    if (!defined eval {
+		$p = c('('.$content->str.' )');
+	    }) {
+		warn "\nContent of <div class='$class'>\n";
+		warn $@->isa('PlexTree') ? $@->print_error : $@;
+		next DIV;
+	    }
+	    $content->cut;
+	} else {
+	    $p = c('()');  # empty parameter list
+	}
+
+	# At this point, $div points to the currently processed HTML
+	# element <div class='ucampas-$feature'> element. Its content
+	# of which has already been removed and parsed into the
+	# PlexTree $p. Feature processors can now extract their
+	# parameters from $p and append their output to $div.
+
+	# The following parameters are equally applied to all features
+        # at the end. We read them already into variables here, such
+        # that each feature may set them to their own defaul values,
+        # in case the user left them undefined.
+
+	# In case $div remains empty after processing, add $emptymsg
+	# as its content.
+	my $emptymsg = $p->cd('emptymsg');
+
+	# In case $div has now content (including $emptymsg), prepend
+	# and append a prelude or postscriptum, if defined,
+	# respectively.
+	my $prelude = $p->cd('prelude');
+	my $postscriptum = $p->cd('postscriptum');
+
+	# Specify what to do with the <div class='ucampas-$feature'>...</div>
+	# wrapper:
+	# $dropdiv > 0: always remove it, leaving its content in its place
+	# $dropdiv = 0: remove it only if it lacks content
+	# $dropdiv < 0: never remove it, even if it lacks content
+	my $dropdiv = $p->get('dropdiv');
+
+	# Now process the various features
+
+	if ($feature eq 'toc') {
+
+	    # table of contents
+	    if (!defined $toc) {
+		$toc = PlexTree->new;
+		my $body = $out->cd('.l(*html)', '.l(*body)');
+		my @levels = ();
+		my @section_numbers;
+		my $down = $toc;
+		foreach my $h ($body->lfind(undef, 'all')) {
+		    if ($h->str_meta =~ /^h([1-6])\z/i) {
+			my $level = $1;
+			my $id = $h->get('id');
+			next unless defined $id; # ignore headings without id
+			if (!@levels || $level > $levels[$#levels]) {
+			    $toc = $down->append->set('*ul');
+			    push @levels, $level;
+			    push @section_numbers, 0;
+			} else {
+			    while (@levels && $level < $levels[$#levels]) {
+				$toc = $toc->up(2);
+				pop @levels;
+				pop @section_numbers;
+			    }
+			}
+			if ($#section_numbers < 0) {
+			    warn("Inconsistent hierarchy of ".
+				 "<h? id=\"...\"> elements\n");
+			    next DIV;
+			}
+			$section_numbers[$#section_numbers]++;
+			my $li = c('*li');
+			if (defined $id &&
+			    !($h->listlen &&
+			      $h->cl(0)->str_meta eq 'a' &&
+			      $h->cl(0)->get('href'))) {
+			    # append to list item an <a href='...'>
+			    # (unless it will get one anyway from $h)
+			    $li = $li->append
+				->set('*a')
+				->addkey('href', text('#' . $id));
+			}
+			$li->copyfrom_list($h);
+			#$li->splice(0, 0, c("*span(class=sn)")
+			#	    ->append(text(join('.', @section_numbers) .'  ')));
+			$down = $toc->append->set($li->top);
+		    }
+		}
+		$toc = $toc->top->cl(0);
+		# print "\n\$toc = " . $toc->print() . "\n";
+	    }
+	    if (defined $toc && $toc->listlen) {
+		# fill generated table of contents into the div element
+		my $c = $div->append->set('*table')
+		    ->append->set('*tbody')
+		    ->append->set('*tr')
+		    ->append->set('*td');
+		$c->append('*p("Contents")');
+		$c->append($toc);
+	    }
+
+	} elsif ($feature eq 'sitemap') {
+
+	    # sitemap
+	    my $start = $cur->top;
+	    my $startpath = $p->get('start');
+	    if (defined $startpath) {
+		$start = NavTree::find_file($cur->fsubdirname . $startpath);
+	    }
+	    my $sitemap = navbar($cur, $start,
+				 class          => 'sitemap',
+				 showinvisibles => 1,
+				 marklink => sub { $_[1]->append(text ' →') } );
+	    $div->append($sitemap);
+	    $dropdiv=1;
+
+	} elsif ($feature eq 'subnodes') {
+
+	    # list of links to subnodes
+	    my $subnodes = navbar($cur, $cur,
+				  class   => 'subnodes',
+				  topopen => 0,
+		                  navtopinclude => 0);
+	    $div->append($subnodes);
+	    $dropdiv=1;
+
+	} elsif ($feature eq 'tabs') {
+
+	    # series of <ul> lists to generate navigation tabs
+	    append_navtabs($div, $cur, undef,
+			   domain => 'tab',
+			   'markcurrent' =>
+			   sub { $_[1]->parent->setatt(class => 'active') });
+	    
+	} elsif ($feature eq 'filelist') {
+
+	    # filelists
+	    foreach my $pattern ($p->list) {
+		my $glob = $pattern->str;
+		my $usetitle = $pattern->get('usetitle');
+		my $neatfilename = $pattern->get('neatfilename');
+		my $mergeextensions = $neatfilename;
+		my $dates = $pattern->get('dates'); # filenames start with ISO 8601 date
+                my $clusteryears = $pattern->get('clusteryears');
+		my $directory = $cur->fdirname;
+		my @list = glob($directory . $glob);
+		# remove $directory prefix from @list elements
+		@list = grep {
+		    index($_, $directory) == 0 ?
+			(substr($_, 0, length($directory)) = '', 1) :
+			0
+		    } @list;
+		# remove *-b.html files that have a derived *.html file
+		@list = grep {
+		    !($_ =~ /^(.+)-b(\.(?:html?|php))\z/i &&
+		      grep({$_ eq "$1$2"} @list));
+		} @list;
+		# remove uconfig.txt files
+		@list = grep { $_ !~ /^uconfig2?\.txt\z/ } @list;
+		my %path;
+		my %basename;
+		my %extension;
+		my %title;
+		my %author;
+		my %sortkey;
+		my %date;
+		my %year;
+		# annotate each file with attributes
+		for my $fn (@list) {
+		    $basename{$fn} = $fn;
+		    $basename{$fn} =~ s/^.*\///;
+		    $extension{$fn} = '';
+		    if ($basename{$fn} =~ s/(\.[^\.]{1,6})\z//) {
+			$extension{$fn} = $1;
+		    }
+		    if ($dates) {
+			if ($basename{$fn} =~ s/^((\d{4})(?:-(\d{2})(?:-\d{2})?)?)[-_]?//) {
+			    $date{$fn} = $1;
+			    $year{$fn} = $2;
+			    my $month = $3;
+			    if ($clusteryears =~ /^a/) {
+				# academic year: 1 October to 30 September
+				if ($month >= 10) {
+				    $year{$fn} = sprintf("%4d/%02d", $year{$fn}, ($year{$fn}+1) % 100);
+				} else {
+				    $year{$fn} = sprintf("%4d/%02d", $year{$fn}-1, $year{$fn} % 100);
+				}
+			    }
+			}
+		    }
+		    if ($neatfilename) {
+			# make filename more presentable
+			$basename{$fn} =~ s/_/ /g;
+		    }
+		    if ($usetitle) {
+			if ($fn =~ /.pdf\z/i) {
+			    my $pdfinfo;
+			    my %pdfinfo;
+			    if (open($pdfinfo,
+				     "pdfinfo '$directory$fn' 2>/dev/null |")) {
+				while (<$pdfinfo>) {
+				    if (substr($_, 0, 16) =~ /^(.*):\s*$/) {
+					$pdfinfo{$1} = substr($_, 16);
+				    }
+				}
+				$title{$fn} = $pdfinfo{'Title'};
+				$author{$fn} = $pdfinfo{'Author'};
+				chomp $title{$fn};
+				chomp $author{$fn};
+			    }
+			} elsif ($fn =~ /\.(?:html?|php)\z/i) {
+			    # use *-b.html version if there is one
+			    my $sourcefn = $fn;
+			    $sourcefn =~ s/(\.(?:html?|php))\z/-b$1/i;
+			    $sourcefn = $fn unless -r $directory.$sourcefn;
+			    $title{$fn} =
+				main::html_extract($directory.$sourcefn,
+						   'title');
+			} elsif (-d $directory.$fn) {
+			    foreach my $indexfn ('index-b.html', 'index.html',
+						 'index.htm',
+                                                 'index-b.php', 'index.php') {
+				if (-r $directory.$fn.$indexfn) {
+				    $title{$fn} =
+					main::html_extract($directory.$fn.$indexfn,
+							   'title');
+				    last;
+				}
+			    }
+			}
+		    }
+		    if (defined $date{$fn}) {
+			my @month=('???', 'January', 'February', 'March', 'April', 'May', 'June',
+				   'July', 'August', 'September', 'October', 'November', 'December');
+			my $date;
+			if ($date{$fn} =~ /^(\d{4})-?(\d{2})-?(\d{2})$/) {
+			    $date = sprintf("%d ", $3) . $month[$2];
+			} elsif ($date{$fn} =~ /^(\d{4})-?(\d{2})$/) {
+			    $date = $month[$2];
+			} elsif ($date{$fn} =~ /^(\d{4})$/) {
+			    $date = "";
+			} else {
+			    die("Date error: '$date{$fn}'");
+			}
+			unless ($clusteryears) {
+			    # append year
+			    $date .= ' ' if defined $date;
+			    $date .= $1;
+			}
+			if (defined $title{$fn}) {
+			    $title{$fn} = $date . ' ' . $title{$fn};
+			} else {
+			    $title{$fn} = $date;
+			}
+		    }
+		    $sortkey{$fn} = $date{$fn} . '~' . uc($basename{$fn}) .
+			"~$basename{$fn}~$extension{$fn}~$fn";
+		}
+		@list = sort { $sortkey{$a} cmp $sortkey{$b} } @list;
+		my %extension_preference = ( '.pdf' => 1, '.doc' => 2 );
+		my @li;
+		while (my $fn = shift @list) {
+		    my @extensions = ($extension{$fn});
+		    if ($mergeextensions) {
+			while (@list and
+			       $basename{$fn} eq $basename{$list[0]}) {
+			    push @extensions, $extension{shift @list};
+			}
+			@extensions = sort( {
+			    $extension_preference{$a} <=>
+				$extension_preference{$b}
+			} @extensions);
+		    }
+		    my $base = substr($fn, 0, length($fn) -
+				      length($extension{$fn}));
+		    my $linktext;
+		    my $a = meta('a')->addkey(text 'href',
+					      text($base.$extensions[0]));
+		    if ($title{$fn}) {
+			$linktext = "$title{$fn}";
+		    } else {
+			$linktext = $basename{$fn} ? $basename{$fn} : $fn;
+			$linktext .= "$extension{$fn}" unless $mergeextensions;
+		    }
+		    $a->append(text $linktext);
+		    my $li = meta('li')->append($a);
+		    if ($mergeextensions) {
+			$li->append(text '  (');
+			while (my $extension = shift @extensions) {
+			    my $neatextension = $extension;
+			    $neatextension =~ s/^\.//;
+			    $neatextension = uc($neatextension);
+			    $li->append(meta('a')
+					->addkey(text 'href',
+						 text("$base$extension"))
+					->append(text $neatextension));
+			    $li->append(text ', ') if @extensions;
+			}
+			$li->append(text ')');
+		    }
+		    push @li, $li;
+		    $year{$li} = $year{$fn};
+		}
+		if ($clusteryears) {
+		    my @nli;
+		    my $nli;
+		    my $year;
+		    while (my $li = shift @li) {
+			if (defined $year && $year{$li} eq $year) {
+			    $nli->append(text ', ', $li->list);
+			} else {
+			    push @nli, $nli if defined $nli;
+			    $year = $year{$li};
+			    $nli = meta('li');
+			    $nli->append(text "$year: ") if defined $year;
+			    $nli->append($li->list);
+			}
+		    }
+		    push @nli, $nli if defined $nli;
+		    @li = @nli;
+		}
+		if (@li) {
+		    @li = reverse @li if $pattern->get('reverse');
+		    if ($pattern->get('type') eq 'p') {
+			my $p = c('*p')->append(shift(@li)->list);
+			while (@li) {
+			    $p->append(text ', ', shift(@li)->list);
+			}
+		        $div->append($p);
+		    } else {
+			# default: type=ul
+			$div->append(c('*ul')->append(@li));
+		    }
+		}
+	    } # foreach my $pattern
+
+	} elsif ($feature eq 'newsfeed') {
+	    
+	    # RSS newsfeed
+	    # (intended and tested so far only for WordPress RSS 2.0 feeds)
+	    next unless defined $p;
+	    my $rssurl = $p->get('rssurl');
+	    die("no rssurl specified for newsfeed\n") unless defined $rssurl;
+	    eval {
+		push @{$notes}, 'newsfeed';
+		my $nodescription = $p->get('nodescription');
+		my $noitemlink = $p->get('noitemlink');
+		my $type = $p->get('type') || 'div';
+		my $maxdays = $p->get('maxdays');
+		my $xml=`curl -f -s -S "$rssurl"`;
+		die("failed downloading '$rssurl'\n") unless $xml;
+		my $rss=text($xml)->cd('.sgmldec');
+		die("SGML decoding failed\n") unless defined $rss;
+		my $channel=$rss->cd('.l(*rss)', '.l(*channel)') ||
+		    $rss->cd('.l(*channel)');
+		die("no channel found\n") unless defined $channel;
+		my $channel_title = $p->get('title') ||
+		    $channel->cd('.l(*title)')->getl(0);
+		my $channel_link  = $p->cd('link') ||
+		    $channel->cd('.l(*link)');
+		my @items = $channel->lfind('*item', 'all', 1);
+		unless (@items) {
+		    die("no items found\n") unless $quiet;
+		    next;
+		}
+		foreach my $item (@items) {
+		    # prepare title link
+		    my $title  = $item->cd('.l(*title)')->getl(0);
+		    my $link   = $item->cd('.l(*link)') ||
+			$item->cd('.l(*guid)');
+		    my $url = $link->getl(0);
+		    my $t = text($title); # HTML formatted item title
+		    unless ($noitemlink) {
+			$t = c('*a')
+			    ->setatt('href' => $url)
+			    ->append($t);
+		    }
+		    # prepare and check date
+		    my $pubdate = $item->cd('.l(*pubdate)');
+		    $pubdate = $pubdate->getl(0) if defined $pubdate;
+		    my $date;
+		    $date = str2time($pubdate) if defined $pubdate;
+		    next if (defined $date && defined $maxdays &&
+			     $date + $maxdays * (60*60*24) < time);
+		    # generate HTML for item
+		    my $s = $div->append();
+		    if ($type eq 'div') {
+			$s->set(c('*div'));
+			$s->append(c('*h3')->append($t));
+		    } elsif ($type eq 'ul') {
+			$s->set(c('*li'));
+			$s->append($t);
+		    } elsif ($type eq 'ucam2008-rss') {
+			$s->set(c('*div(class="news_item")'));
+			$t->setatt('class', 'news_item_right_link')
+			    if ($t->tag == META);
+			$s->append(c('*p(class=news_item_date)')
+				   ->append(text strftime("%e %b %Y", localtime $date)));
+			$s->append(c('*p')->append($t));
+		    }
+		    unless ($nodescription) {
+			# prepare article content
+			my $content_encoded = $item->cd('.l(*content:encoded)');
+			my $description     = $item->cd('.l(*description)');
+			$content_encoded = $content_encoded->getl(0)
+			    if defined $content_encoded;
+			$description     = $description->getl(0)
+			    if defined $description;
+			my $content;
+			if (defined $content_encoded) {
+			    # try to parse content of <content:encoded>
+			    eval {
+				$content =
+				    text('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">' . 
+					 "\n<body>\n" .
+					 $content_encoded)->cd('.sgmldec');
+				defined $content || die("undefined content");
+			    };
+			    if ($@) {
+				warn(PlexTree::print_error($@, $rssurl,
+							   'skiprows' => 2));
+				$content = c('*body')
+				    ->append(trans($content_encoded));
+			    } else {
+				$content = $content->cd('.l(*body)');
+				defined $content || die("cannot find <body>");
+				foreach my $c ($content->list) {
+				    # prune whitespace between paragraphs
+				    $c->cut if ($c->tag == TEXT &&
+						$c->str =~ /^\s*$/);
+				}
+			    }
+			} elsif (defined $description) {
+			    $content = c('*body')
+				->append(c('*p')->append(trans($description)));
+			}
+			# append article content
+			if (defined $content) {
+			    my $maxparagraphs = $p->get('maxparagraphs');
+			    if ($maxparagraphs > 0) {
+				# truncate after the first few paragraphs
+				my $lastp = $content
+				    ->lfind(c('*p'), $maxparagraphs-1, 1);
+				if (defined $lastp &&
+				    $lastp->pos < $content->listlen - 1) {
+				    $content->splice($lastp->pos+1);
+				    my $more = $p->cd('more');
+				    $more = c('*a(" (more...)")')
+					unless defined $more;
+				    # eg: more=*p(class=more, *a("Read more"))
+				    my $a = $more->lfind('*a');
+				    die('attribute more lacks element *a\n')
+					unless defined $a;
+				    $a->setatt('href' => $url);
+				    if ($more->match('*p') ||
+					$more->match('*div')) {
+					$content->append($more);
+				    } else {
+					$lastp->append($more);
+				    }
+				}
+			    }
+			    $s->append($content->list);
+			}
+		    }
+		}
+		return unless $div->listlen;
+		# prepend channel title+link as heading
+		if ($channel_title && !defined $prelude) {
+		    $prelude = text $channel_title;
+		    if ($channel_link->tag == TEXT) {
+			$prelude = c('*a')
+			    ->setatt('href' => $channel_link->str)
+			    ->append($prelude);
+		    }
+		    $prelude = c('*h2')->append($prelude) unless $type eq 'ucam2008-rss';
+		}
+		# In case there was at least one item ...
+		if ($type eq 'ul') {
+		    $div->append(c('*ul')->movelist($div));
+		} elsif ($type eq 'ucam2008-rss') {
+		    # there probably ought to be a hook such that
+		    # all this style-specific hackery can move into
+		    # a template file
+		    my $images_url = $cur->param('images_url') ||
+			"http://www.cam.ac.uk/global/images/";
+		    my $dt = c('*dt');
+		    $dt->append(c('*a')
+				->setatt(href => $rssurl)
+				->append(c('*img(alt="[rss feed]", class="news_rss_image", title="RSS feed")')
+					 ->setatt(src => NavTree::rurl($images_url . "rssfeed.gif", $cur))));
+		    $dt->append($prelude);
+		    $div->append(c('*dl(class=news_box)')
+				 ->append($dt)
+				 ->append(c('*dd')->movelist($div)));
+		    undef $prelude;
+		}
+	    };
+	    if ($@) {
+		die PlexTree::print_error($@, "newsfeed $rssurl");
+	    }
+	} elsif ($feature eq 'include-text') {
+	    $dropdiv = 1 unless defined $dropdiv;
+	    foreach my $file ($p->list) {
+		my $fn = $file->ustr_text;
+		$fn = $cur->fdirname . $fn unless $fn =~ /^\//;
+		my $f;
+		unless (open($f, '<:utf8', $fn)) {
+		    warn("Cannot open file '$fn' requested in " .
+			 "<div class='ucampas-$feature'>: $!\n");
+		    next;
+		}
+		while (<$f>) {
+		    $div->append(text $_);
+		}
+		close $f;
+	    }
+	} elsif ($feature eq 'include-html') {
+	    foreach my $file ($p->list) {
+		my $fn = $file->ustr_text;
+		$fn = $cur->fdirname . $fn unless $fn =~ /^\//;
+		my $f;
+		unless (open($f, '<:utf8', $fn)) {
+		    warn("Cannot open file '$fn' requested in " .
+			 "<div class='ucampas-$feature'>: $!\n");
+		    next;
+		}
+		my $src;
+		{
+		    local $/; # enable localized slurp mode
+		    $src = text <$f>;
+		}
+		close $f;
+		if (!defined eval {
+		    $src = $src->cd('.sgmldec(public_id="-//W3C//DTD HTML 4.01//EN")')->newroot;
+		    }) {
+		    die PlexTree::print_error($@, $fn);
+		}
+		my $body = $src->cd('.l(*html)', '.l(*body)');
+		# execute optional filter instructions to trim the retrieved tree
+		for my $filter ($file->list) {
+		    my $type = $filter->ustr_text;
+		    if ($type eq 'find') {
+			my $pattern = $filter->cl(0);
+			die("Missing pattern in find filter in <div class='ucampas-$feature'>!\n")
+			    unless $pattern;
+			my $maxdepth = $filter->get('maxdepth');
+			$maxdepth = 1 unless defined $maxdepth;
+			my $match = $body->lfind($pattern, $filter->get('skip'), $maxdepth);
+			my $op = $filter->get('op');
+			if (!defined $op || $op eq 'this') {
+			    $body->splice(0, undef, $match);
+			} elsif ($op eq 'content') {
+			    $body->splice(0, undef, $match->list);
+			} else {
+			    next unless defined $match;
+			    my $pos = $match->pos;
+			    my $body = $match->parent;
+			    if ($op eq 'cutbefore') {
+				$body->splice(0, $pos);
+			    } elsif ($op eq 'cutuntil') {
+				$body->splice(0, $pos+1);
+			    } elsif ($op eq 'cutfrom') {
+				$body->splice($pos, undef);
+			    } elsif ($op eq 'cutafter') {
+				$body->splice($pos+1, undef);
+			    } else {
+				die("Unknown operation '$op' in <div class='ucampas-$feature'>:\n" .
+				    $filter->print . "\n");
+			    }
+			}
+		    }
+		}
+		$div->append($body->list) if defined $body;
+	    }
+	} else {
+	    die("Unknown ucampas feature: " .
+		"<div class='ucampas-$feature'>...</div>\n");
+	}
+	
+	# apply parameters common to all features
+	if (!$div->list) {
+	    $div->append($emptymsg)
+		if defined $emptymsg && !$prelude->isempty;
+	}
+	if ($div->list) {
+	    # add prelude
+	    $div->splice(0,0,$prelude)
+		if defined $prelude && !$prelude->isempty;
+	    # add postscriptum
+	    $div->append($postscriptum)
+		if defined $postscriptum && !$postscriptum->isempty;
+	    # option to remove the <div class="ucampas-...">...</div> wrapper
+	    $div->flatten if $dropdiv > 0;
+	} else {
+	    # remove empty <div class="ucampas-..."></div>
+	    $div->cut unless $dropdiv < 0;
+	}
+	
+    }  # foreach my $div
+    
+    # add index.html if requested by option -i or parameter add_index=1
+    add_index($out) if $cur->param('add_index');
+
+    print $out->print() . "\n" if 0;
+
+    return $out;
+}
+
+# global counters
+my $files = 0;
+my $files_unchanged;
+my $errors = 0;
+
+# other global variables
+my @suffixes = ('php', 'htm', 'html');
+my @compound_options;
+my %debug;
+
+sub process_file($$) {
+    my ($fn,$recurse) = @_;
+    my ($input_fn, $output_fn);
+    my @notes; # to collect informative messages (no change, etc.)
+
+    $files++;
+    eval {
+	# determine input and output filenames
+	($input_fn, $output_fn) =
+	    NavTree::preprocess_filename($fn, 'input', 'output');
+    };
+    if ($@) {
+	# handle error messages
+	print STDERR $@;
+	$errors++;
+	return;
+    }
+
+    # Let the NavTree library prepare the navigation-tree information
+    # (by scanning the entire tree of uconfig.txt files)
+    my $cur = NavTree::find_file($output_fn);
+    # merge in command-line options
+    foreach my $c (@compound_options) {
+	# TODO: worry about duplicate copies
+	$cur->top->copyfrom($c);
+    }
+    if ($cur->get('unreachable')) {
+	push @notes, "unreachable from parent";
+    }
+    if ($cur->get('nopage')) {
+	# This node is not associated with a web page, it is just a
+	# heading in the navigation tree that links to its first child
+	goto RECURSE;
+    }
+    unless (-f $input_fn) {
+	print STDERR "$input_fn: source file does not exist\n";
+	$errors++;
+	return;
+    }
+    # read some inode data
+    $cur->fstat;
+    # try to read subversion metadata
+    $cur->svninfo if $cur->param('svninfo');
+
+    # some debugging output
+    print $cur->print() . "\n" if $debug{'cur'};
+    print $cur->parent->print() . "\n" if $debug{'parent'};
+    print $cur->top->print() . "\n" if $debug{'nav'};
+    if ($debug{'path'} || $debug{'pathprint'}) {
+	my $i = 0;
+	foreach my $p ($cur->path) {
+	    print "path depth $i:\n";
+	    print "  ->fpath = '" . $p->fpath . "'\n";
+	    print "  ->fpath('url') = '" . $p->fpath('url') . "'\n";
+	    print "  ->url(\$cur) = '" . $p->url($cur) . "'\n";
+	    print "  ->rurl(\$cur) = '" . $p->rurl($cur) . "'\n";
+	    print $p->print . "\n" if $debug{'pathprint'};
+	    $i++;
+	}
+    }
+
+    # announce what is about to happen
+    print STDERR "Updating " . $cur->dpath . " ..." unless $quiet;
+
+    # catch all errors while we have not yet written \n
+    eval {
+
+	# parse source file
+	my $html;
+	if (!open(IN, '<', $input_fn)) {
+	    die "$input_fn: cannot read input file, $!\n";
+	}
+	while (<IN>) { 
+	    $html .= $_;
+	    # check input for invalid UTF-8 sequences
+	    /^(([\x00-\x7f]|[\xc0-\xdf][\x80-\xbf]|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xf7][\x80-\xbf]{3})*)(.*)$/;
+	    if (length($3)) {
+		die "$input_fn:$.:".($-[3]+1).":Invalid UTF-8 sequence\n$_";
+	    }
+	}
+	close(IN);
+	my $src = text($html);
+	if (!defined eval {
+	    $src = $src->cd('.sgmldec(public_id="-//W3C//DTD HTML 4.01//EN")')->newroot;
+	}) {
+	    die PlexTree::print_error($@, $input_fn);
+	}
+	
+	# extract configuration information from it
+	my $head = $src->cd('.l(*html)', '.l(*head)');
+	if (defined $head) {
+	    foreach my $meta ($head->lfind('*meta(name="ucampas-config")', 'all')) {
+		my $content = $meta->get('content');
+		my $uconfig;
+		if (!defined eval {
+		    $uconfig = c("( $content)");
+		}) {
+		    die PlexTree::print_error($@, 'Content of ' .
+					      '<meta name="ucampas-config">');
+		}
+		$cur->copyfrom_dir($uconfig);
+		# we do not copy the list here (list changes affect other nodes, too)
+		$meta->cut;
+	    }
+	}
+	# prepare formatted page
+	my $style = $cur->param('style');
+	my $out = apply_style($cur, $src, $style, \@notes);
+	if ($debug{'out'}) {
+	    print $out->print . "\n";
+	}
+	my $h = $out->get(ctrl('sgmlenc')
+			  ->addkey('noxmldecl', undef)
+			  ->addkey('ncr', undef)
+	                  ->addkey('comment',
+			           text('DO NOT EDIT: file automatically '.
+				   "generated by ucampas."# from\n     ".
+			           # $cur->srcfile
+                       )));
+	if (!defined $h) {
+	    # not sure this still can happen
+	    die "$input_fn:$.: no output defined\n";
+	}
+	
+	# debug outputs
+	if ($debug{'src'}) {
+	    print $src->print . "\n";
+	}
+	
+	my $old_html;
+	if ($cur->param('change_check')) {
+	    # check whether there is any change compared to the old file
+	    if (-f $output_fn && open(OLDIN, '<', $output_fn)) {
+		local $/;
+		$old_html = <OLDIN>;
+		close OLDIN;
+	    }
+	}
+	
+	# change umask of this process if the user wants so
+	my $umask = $cur->param('umask');
+	my $orig_umask;
+	$orig_umask = umask oct($umask) if defined $umask;
+
+	if (defined $old_html && $old_html eq $h) {
+	    # we don't rewrite the file unless necessary,
+	    # to make live simpler for some backup schemes
+	    push @notes, "no change";
+	    $files_unchanged++;
+	} else {
+	    # write the resulting HTML file
+	    my $tmp_fn = $output_fn . "~$$";
+	    my $sigabort = 0;
+	    # handle aborting signals while tmpfile exists
+	    local $SIG{INT} = sub { $sigabort = 1; };
+	    local $SIG{HUP} = $SIG{INT};
+	    local $SIG{TERM} = $SIG{INT};
+	    if (open(OUT, '>', $tmp_fn)) {
+		if (!print OUT $h) {
+		    die "$output_fn: " .
+			"failed to write temporary output file '$tmp_fn', $!\n"
+		}
+		if (!close(OUT)) {
+		    die "$output_fn: " .
+			"failed to close temporary output file '$tmp_fn', $!\n";
+		}
+		rename $output_fn, $output_fn . '~'
+		    if $cur->param('keepbackup');
+		if (!rename $tmp_fn, $output_fn) {
+		    die "$output_fn: " .
+			"failed to rename temporary output file '$tmp_fn', $!\n";
+		}
+	    } else {
+		die "$output_fn: " .
+		    "cannot write temporary output file '$tmp_fn', $!\n";
+	    }
+	    die("Aborting due to received signal!\n") if $sigabort;
+	}
+    
+	# restore umask
+	umask $orig_umask if defined $orig_umask;
+
+	# debug output
+	if ($debug{'neighbours'}) {
+	    #print "\nCurrent: " . $cur->fpath . " = " . $cur->url() . "\n";
+	    print "\n";
+	    my $head = $out->lfind('*html')->lfind('*head');
+	    for my $rel ('Next', 'Up') {
+		my $n = $head->lfind("*link(rel=$rel)");
+		if (defined $n) {
+		    printf("%7s: %s\n", $rel, $n->get('href'));
+		}
+	    }
+	}
+
+    };
+    if ($@) {
+	my $error = $@;
+	# handle error messages
+	if ($quiet) { 
+	    print STDERR $cur->apath . ': ';
+	} else {
+	    print STDERR "\n";
+	}
+	if ($error =~ /!\n\z/) {
+	    # exceptions ending in exclamation mark are serious
+	    die $error;
+	}
+	print STDERR $error;
+	$errors++;
+	return;
+    }
+
+    unless ($quiet) {
+	printf STDERR ' (' . join(', ', @notes) . ')' if @notes;
+	print STDERR "\n";
+    }
+    
+    # recurse
+  RECURSE:
+    recurse($cur, $recurse) if $recurse != 0;
+}
+
+sub recurse($$) {
+    my ($cur, $recurse) =@_;
+    foreach my $c ($cur->list) {
+	next if $c->tag != TEXT;    # do not recurse into cross-links
+	next if $c->get('stoprecursion'); # we shall not descend here
+	if ($c->get('nopage')) {
+	    recurse($c);
+	    next;
+	}
+	next if $c->get('missing'); # we warned already about missing dir
+	my $fn = $c->fpath;
+	next if $fn =~ /\.(?:ps|pdf|txt|doc)\z/i;
+	$fn .= '/' unless $fn =~ /\.(?:html?|php)\z/i || $fn =~ /\/\z/;
+	process_file($fn, $recurse - 1);
+    }
+}
+
+
+# Parse the command-line options
+
+my $usage = <<EOT;
+ucampas -- University of Cambridge web page augmentation system -- Markus Kuhn
+
+Usage: ucampas [options] file ...
+
+Normal options:
+
+  -r[depth]     Process not only the listed input files, but also recurse into
+                all their child nodes listed in "uconfig.txt" files
+                (up to "depth" levels deep)
+
+  -i            Append "index.html" to relative HREF links to directories,
+                such that they also work through file://... URLs
+
+  -q            Quiet mode, output only errors and warnings
+
+  -p            Execute any <?perl ... ?> processing instructions embedded
+                in source HTML files. (Default is to remove them.)
+
+  -b            Keep a backup copy of the previous output file (suffix: ~)
+
+  -c 'options'  add further options to those in the top-level "uconfig.txt"
+
+Documentation:
+
+  http://www.cl.cam.ac.uk/local/web/ucampas/
+
+EOT
+
+# parse the global uconfig.txt file
+NavTree::set_global_uconfig("$RealBin/uconfig.txt");
+
+my $recurse = 0;
+my $parse_options = 1;
+while (@ARGV) {
+    $_ = shift @ARGV;
+    if ($parse_options && /^-/) {
+	if (/^-r\z/) {
+	    $recurse = -1;
+	} elsif (/^-r(\d+)\z/) {
+	    $recurse = $1;
+	} elsif (/^-i\z/) {
+	    push @compound_options, c('{add_index=1}');
+	} elsif (/^-p\z/) {
+	    $embedded_perl = 1;
+	} elsif (/^-q\z/) {
+	    $quiet = 1;
+	} elsif (/^-c\z/) {
+	    my $t = shift @ARGV;
+	    my $c;
+	    die("Missing argument after -c.\n") unless defined $t;
+	    if (!defined eval {
+		$c = c("( $t)");
+		}) {
+		print STDERR PlexTree::print_error($@, 'Argument of option -c');
+		exit(1);
+	    }
+	    push @compound_options, $c;
+	} elsif (/^-b\z/) {
+	    # keep the previous *.html file as *.html~
+	    push @compound_options, c('{keepbackup=1}');
+	} elsif (/^--debug\z/) {
+	    my $debug = shift @ARGV;
+	    die("Missing argument after --debug.\n") unless defined $debug;
+	    map { $debug{$_} = 1 } split(/,/, $debug);
+	} elsif (/^-h/ || /^--help/) {
+	    print $usage;
+	    exit 0;
+	} elsif (/^--\z/) {
+	    $parse_options = 0;
+	} else {
+	    die("Unknown command line option '$_'!\n\n" . $usage);
+	}
+    } else {
+	process_file($_, $recurse);
+    }
+}
+
+if ($files == 0) {
+    # default filename: index
+    process_file('index', $recurse);
+}
+
+if (!$quiet && $files > 1) {
+    printf STDERR "$files files processed";
+    printf STDERR ", $errors of which skipped because of errors"
+	if $errors > 0;
+    printf STDERR ", $files_unchanged files unchanged"
+	if defined $files_unchanged;
+    printf STDERR ".\n";
+}
+exit $errors > 0;

@@ -225,7 +225,7 @@ let get_posts ?n ?(ofs=0) planet_feeds =
   | None -> posts
   | Some n -> take n posts
 
-let write_post ?n ?ofs planet_feeds =
+let write_post ?n ?ofs ~file planet_feeds =
   let posts = get_posts ?n ?ofs planet_feeds in
   let recentList = List.map (fun p ->
                      let date = date_of_post p in
@@ -250,8 +250,8 @@ let write_post ?n ?ofs planet_feeds =
                    (* Write contents *)
                    let buffer = Buffer.create 0 in
                    let channel = new Netchannels.output_buffer buffer in
-                   let desc = if length_html p.desc < 500 then p.desc
-                              else prefix_of_html p.desc 500 in
+                   let desc = if length_html p.desc < 2000 then p.desc
+                              else prefix_of_html p.desc 2000 in
                    let _ = Nethtml.write channel desc in
                    let content = Buffer.contents buffer in
                    match face with
@@ -263,4 +263,8 @@ let write_post ?n ?ofs planet_feeds =
                   posts in
   let body = mk_body (String.concat "\n" recentList)
                      (String.concat "\n" postList) in
-  print_string body
+  (* write to file *)
+  let f = open_out file in
+  let () = output_string f body in
+  close_out f
+

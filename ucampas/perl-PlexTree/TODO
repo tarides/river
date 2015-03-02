@@ -1,0 +1,9 @@
+- filter sgmlenc: utilize doctype
+- symlink filter
+- finish implementing filter for file-system access (attributes, write, etc.)
+- investigate whether overloading (man overload) should be used in API
+
+Known bugs:
+
+none
+

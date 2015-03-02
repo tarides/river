@@ -1,0 +1,25 @@
+#!/bin/bash
+# Set the svn:ignore property in each subdirectory of a Subversion
+# working directory, such that ucmpas-generated HTML files are ignored
+# by "svn status". If there are any files (one per line ) listed in
+# a file called .usvnignore in the respective directory, then add these
+# as well.
+find -type d -name '.svn' -execdir bash -c '
+  shopt -s nullglob
+  file=.usvnignore~$$
+  rm -f $file
+  for src in *-b.html ; do
+    echo "$list${src%-b.html}.html" >>$file
+  done
+  for src in *-b.php ; do
+    echo "$list${src%-b.php}.php" >>$file
+  done
+  [ -r .usvnignore ] && cat .usvnignore >>$file
+  pwd
+  if [ -e $file ] ; then
+    svn propset svn:ignore -F $file .
+    rm $file
+  else
+    svn propdel svn:ignore .
+  fi
+' \;

@@ -1,0 +1,157 @@
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:t="http://ocaml.org/xmlns/template#">
+  <head>
+    <meta charset="utf-8"/>
+    <title>opam-sync-github-prs 1.0.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Software projects at OCaml Labs"/>
+    <meta name="author" content="OCaml Labs"/>
+    
+      <meta name="generator" content="opam2web 1.2.0-88-gbc6c7ac"/>
+     <link href="../../../ext/css/bootstrap.css" rel="stylesheet"/>  <link href="../../../ext/css/bootstrap-responsive.css" rel="stylesheet"/>  <link href="../../../ext/css/docs.css" rel="stylesheet"/>  <link href="../../../ext/js/google-code-prettify/prettify.css" rel="stylesheet"/>  <link href="../../../ext/css/site.css" rel="stylesheet"/> 
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <div class="nav-collapse collapse">
+             <p>These are software packages developed and maintained at OCaml Labs, either directly by us or with our industrial collaborators at <a href="http://xenserver.org">Citrix</a>, <a href="http://ocaml.janestreet.com">Jane Street</a>, <a href="http://ocamlpro.com">OCamlPro</a>, and of course with a huge amount of help from the wider <a href="http://opam.ocamlpro.com">OCaml community</a>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wrap">
+    <div id="main" class="container clear-top">
+
+      
+    <h2>opam-sync-github-prs</h2>
+
+    <div class="row">
+      <div class="span9">
+        <div>
+          <ul class="nav nav-pills">
+            
+             <li class="active">
+               <a href="#">version 1.0.0</a>
+             </li>
+           
+          </ul>
+        </div>
+
+        <table class="table">
+          <tbody>
+            
+            
+            
+            
+            <tr>
+              <th>Tag</th>
+              <td>org:ocamllabs</td>
+            </tr>
+      
+            
+            <tr>
+              <th>Maintainer</th>
+              <td>anil@recoil.org</td>
+            </tr>
+      
+            
+            <tr>
+              <th>Dependencies</th>
+              <td>ocamlfind &amp; core &gt;= 109.53.01 &amp; github &gt;= 0.8.0 &amp; lwt &gt;= 2.4.2</td>
+            </tr>
+      
+            
+            <tr>
+              <th>Last update</th>
+              <td>
+                Mar 24, 2014
+              </td>
+            </tr>
+            
+        <tr>
+        <th>Source  </th>
+        <td>
+          <a href="https://github.com/avsm/opam-sync-github-prs/archive/v1.0.0.tar.gz" title="Download source">https://github.com/avsm/opam-sync-github-prs/archive/v1.0.0.tar.gz</a><br/>
+           <small>5ddc2ebf373a6a8cf9847e933bc0ee53</small> 
+        </td>
+        </tr>
+      
+             
+          </tbody>
+        </table>
+
+        <div class="well">
+      <p><b> <p>Sync OCaml GitHub issues with OPAM</p> </b></p>
+       <p>This command-line tool generates an OPAM repository that contains a set of compiler switches that apply patches from GitHub pull requests to OCaml.</p><p>For example, here is a shortened list of outputs:</p><div class="ocaml"><pre><code><span class="keyword2">$</span> opam switch --all
+system  <span class="keyword6">C </span>system                      <span class="keyword6">System </span>compiler <span class="keyword2">(</span><span class="keyword8">4</span>.<span class="keyword8">01</span>.<span class="keyword8">0</span><span class="keyword2">)</span>
+--     -- <span class="keyword8">3</span>.<span class="keyword8">11</span>.<span class="keyword8">2</span>                      <span class="keyword6">Official </span><span class="keyword8">3</span>.<span class="keyword8">11</span>.<span class="keyword8">2</span> release
+--     -- <span class="keyword8">3</span>.<span class="keyword8">12</span>.<span class="keyword8">1</span>                      <span class="keyword6">Official </span><span class="keyword8">3</span>.<span class="keyword8">12</span>.<span class="keyword8">1</span> release
+--     -- <span class="keyword8">4</span>.<span class="keyword8">00</span>.<span class="keyword8">0</span>                      <span class="keyword6">Official </span><span class="keyword8">4</span>.<span class="keyword8">00</span>.<span class="keyword8">0</span> release
+--     -- <span class="keyword8">4</span>.<span class="keyword8">00</span>.<span class="keyword8">1</span>                      <span class="keyword6">Official </span><span class="keyword8">4</span>.<span class="keyword8">00</span>.<span class="keyword8">1</span> release
+--     -- <span class="keyword8">4</span>.<span class="keyword8">01</span>.<span class="keyword8">0</span>                      <span class="keyword6">Official </span><span class="keyword8">4</span>.<span class="keyword8">01</span>.<span class="keyword8">0</span> release
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr2               <span class="keyword6">Parse </span>-.x<span class="keyword2">*</span><span class="keyword2">*</span><span class="keyword8">2</span>. <span class="keyword2">(</span>unary -.<span class="keyword2">)</span> <span class="keyword1">as</span> -.<span class="keyword2">(</span>x<span class="keyword2">*</span><span class="keyword2">*</span><span class="keyword8">2</span>.<span class="keyword2">)</span>.  <span class="keyword6">Fix </span>PR<span class="keyword7">#3414</span>
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr3               <span class="keyword6">Extend </span>record punning <span class="keyword1">to</span> allow destructuring.
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr4               <span class="keyword6">Fix </span><span class="keyword1">for</span> PR<span class="keyword7">#4832</span> <span class="keyword2">(</span><span class="keyword6">Filling </span>bigarrays may block out runtime<span class="keyword2">)</span>
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr6               <span class="keyword6">Warn </span>user <span class="keyword1">when</span> a <span class="keyword4">type</span> variable <span class="keyword4">in</span> a <span class="keyword4">type</span> <span class="keyword4">constraint</span> has been instantiated.
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr7               <span class="keyword6">Extend </span>ocamllex <span class="keyword1">with</span> actions before refilling
+--     -- <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr8               <span class="keyword6">Adds </span>a .gitignore <span class="keyword1">to</span> ignore all generated files during `make world.opt'
+</code></pre></div><p>You can experiment with the lexing PR by running:</p><div class="ocaml"><pre><code><span class="keyword1">open</span> switch <span class="keyword8">4</span>.<span class="keyword8">02</span>.<span class="keyword8">0</span>dev<span class="keyword2">+</span>pr7
+eval `opam config env`
+ocamllex ...
+</code></pre></div> 
+    </div>
+
+      </div>
+
+      <div class="span3">
+        <table class="table table-bordered">
+          <tbody>
+            
+             <tr class="well">
+             <th>Dependencies</th>
+             </tr>
+           
+          <tr>
+            <td>
+               <a href="/projects/ocamllabs/pkg/lwt/2.4.5/">lwt</a> 
+              <small>( &gt;= 2.4.2 )</small>
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+               <a href="/projects/ocamllabs/pkg/github/0.8.5/">github</a> 
+              <small>( &gt;= 0.8.0 )</small>
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+               <a href="/projects/ocamllabs/pkg/core/111.11.01/">core</a> 
+              <small>( &gt;= 109.53.01 )</small>
+            </td>
+          </tr>
+        
+          <tr>
+            <td>
+               <a href="/projects/ocamllabs/pkg/ocamlfind/1.4.0/">ocamlfind</a> 
+              <small></small>
+            </td>
+          </tr>
+        
+            
+            
+            
+          </tbody>
+        </table>
+      </div>
+    </div>
+  
+
+    </div> 
+    </div> 
+  </body>
+</html>

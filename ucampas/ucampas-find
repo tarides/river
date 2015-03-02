@@ -1,0 +1,3 @@
+#!/bin/bash
+# enumerate all *-b.{html,php} files while ignoring .svn metadata
+find -name .svn -prune -o -iregex '.*-b\.\(html?\|php\)' $*

@@ -1,0 +1,8 @@
+This is a simpler style for Wolfson College "intranet" pages.
+
+To use this style, additional CSS and and image files will be required
+that are not currently included here, but can be found (along with
+some other files) under
+
+  http://www.wolfson.cam.ac.uk/css/
+  http://www.wolfson.cam.ac.uk/assets/
