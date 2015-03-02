@@ -1,114 +1,113 @@
-open Cow
+open Printf
 
-let mk_recent ~date ~href ~author ~title : Html.t =
-  <:html<
-      <tr>
-        <td><i>$title$</i></td>
-        <td><a href="$href$">$title$</a></td>
-        <td>$author$</td>
-      </tr>
-  >>
+let mk_recent ~date ~url ~author ~title : string =
+  sprintf
+"<tr>
+    <td><i> %s </i></td>
+    <td><a href=\"#%s\">%s</a></td>
+    <td>%s</td>
+ </tr>
+" date url title author
 
-let mk_post ~content ~url ~title ~blog_url ~blog_title ~blog_name ~author ~date ~content : Html.t =
-  <:html<
-    <div class="channelgroup">
-      <div class="entrygroup" id="$url$">
-        <a name="$url$"> </a>
-        <h1 class="posttitle">
-          <a href="$url$">$title$</a>
-          (<a href="$blog_url$" title="$blog_title$">$blog_name$</a>)
-        </h1>
-        <hr/>
-        <div class="entry">
-          <div class="content">
-            <div>
-              $content$
-            </div>
-          </div>
-          <p class="date">
-            <a href="$url$">by $author$ at $date$ </a>
-          </p>
+let mk_post ~url ~title ~blog_url ~blog_title ~blog_name ~author
+            ~date ~content : string =
+  sprintf
+"<div class=\"channelgroup\">
+  <div class=\"entrygroup\" id=\"%s\">
+    <a name=\"#%s\"> </a>
+    <h1 class=\"posttitle\">
+      <a href=\"%s\">%s</a>
+      (<a href=\"%s\" title=\"%s\">%s</a>)
+    </h1>
+    <hr/>
+    <div class=\"entry\">
+      <div class=\"content\">
+        <div>
+          %s
         </div>
       </div>
+      <p class=\"date\">
+        <a href=\"%s\">by %s at %s </a>
+      </p>
     </div>
-  >>
+  </div>
+</div>
+" url url url title blog_url blog_title blog_name content url author date
 
-let mk_post_with_face ~content ~url ~title ~blog_url ~blog_title ~blog_name ~author ~date ~content ~face ~face_height =
-  <:html<
-    <div class="channelgroup">
-      <img style="float:right; padding-left: 20px;" class="face" src="$face$" width="" height="$face_height$" alt="" />
-      <div class="entrygroup" id="$url$">
-        <a name="$url$"> </a>
-        <h1 class="posttitle">
-          <a href="$url$">$title$</a>
-          (<a href="$blog_url$" title="$blog_title$">$blog_name$</a>)
-        </h1>
-        <hr/>
-        <div class="entry">
-          <div class="content">
-            <div>
-              $content$
-            </div>
-          </div>
-          <p class="date">
-            <a href="$url$">by $author$ at $date$ </a>
-          </p>
+let mk_post_with_face ~url ~title ~blog_url ~blog_title ~blog_name ~author
+                      ~date ~content ~face ~face_height : string =
+  sprintf
+"<div class=\"channelgroup\">
+  <img style=\"float:right; padding-left: 20px;\" class=\"face\"
+  src=\"%s\" width=\"\" height=\"%d\" alt=\"\" />
+  <div class=\"entrygroup\" id=\"%s\">
+    <a name=\"#%s\"> </a>
+    <h1 class=\"posttitle\">
+      <a href=\"%s\">%s</a>
+      (<a href=\"%s\" title=\"%s\">%s</a>)
+    </h1>
+    <hr/>
+    <div class=\"entry\">
+      <div class=\"content\">
+        <div>
+          %s
         </div>
       </div>
+      <p class=\"date\">
+        <a href=\"%s\">by %s at %s </a>
+      </p>
     </div>
-  >>
+  </div>
+</div>
+" face face_height url url url title blog_url blog_title blog_name content url author date
 
-let body ~recentList ~postList =
-  <:html<
-    <head> <title>Blogs</title>
-    <link rel="alternate" href="http://www.cl.cam.ac.uk/projects/ocamllabs/blogs/rss10.xml" title="" type="application/rss+xml" />
-    <style>
-        a.icon-github {
-      background: url(../github.png) no-repeat 0 0;
-            background: url(../github.png) no-repeat 0 0;
-      padding: 0 0 2px 2em;
-        }
-        a.icon-cloud {
-      background: url(../cloud.png) no-repeat 0 0;
-            background-size: 17px;
-      padding: 0 0 2px 2em;
-        }
-        a.icon-bullhorn {
-      background: url(../bullhorn.png) no-repeat 0 0;
-            background-size: 17px;
-      padding: 0 0 2px 2em;
-        }
-        a.icon-wrench {
-      background: url(../wrench.png) no-repeat 0 0;
-            background-size: 17px;
-      padding: 0 0 2px 2em;
-        }
-        h2.posttitle {
-            font-size: 120%;
-        }
-    div.toc {
-        background-color: rgb(239, 239, 239);
-        margin: 0.5em 0em 1.5em 1px;
-        border: 1px solid black;
-        font-size: 0.7em;
-        padding: 0px 0px 1ex;
-        font-size: 100%;
-    }
-    div#content-primary p img, div#content-primary img.right { float: none; }
+let mk_body ~recentList ~postList : string =
+"<head> <title>Blogs</title>
+  <link rel=\"alternate\" href=\"http://www.cl.cam.ac.uk/projects/ocamllabs/blogs/rss10.xml\" title=\"\" type=\"application/rss+xml\" />
+  <style>
+      a.icon-github {
+    background: url(../github.png) no-repeat 0 0;
+          background: url(../github.png) no-repeat 0 0;
+    padding: 0 0 2px 2em;
+      }
+      a.icon-cloud {
+    background: url(../cloud.png) no-repeat 0 0;
+          background-size: 17px;
+    padding: 0 0 2px 2em;
+      }
+      a.icon-bullhorn {
+    background: url(../bullhorn.png) no-repeat 0 0;
+          background-size: 17px;
+    padding: 0 0 2px 2em;
+      }
+      a.icon-wrench {
+    background: url(../wrench.png) no-repeat 0 0;
+          background-size: 17px;
+    padding: 0 0 2px 2em;
+      }
+      h2.posttitle {
+          font-size: 120%;
+      }
+  div.toc {
+      background-color: rgb(239, 239, 239);
+      margin: 0.5em 0em 1.5em 1px;
+      border: 1px solid black;
+      font-size: 0.7em;
+      padding: 0px 0px 1ex;
+      font-size: 100%;
+  }
+  div#content-primary p img, div#content-primary img.right { float: none; }
 
-    </style>
-    </head>
+  </style>
+  </head>
 
-    <body>
+  <body>
 
-    <div id="container">
+  <div id=\"container\">
 
-    <h4>Recent Posts</h4>
-    <table width="90%">
-      $recentList$
-    </table>
-
-    $postList$
-    </div>
-    </body>
-  >>
+  <h4>Recent Posts</h4>
+  <table width=\"90%\">\n" ^ recentList ^
+"</table>
+" ^ postList ^
+" </div>
+  </body>"

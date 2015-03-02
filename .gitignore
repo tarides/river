@@ -1,2 +1,4 @@
 *.native
 _build
+*~
+*.swp

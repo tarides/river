@@ -1,6 +1,10 @@
 open Feeds
+open Posts
+open Bootstrap
 open Printf
 
-let _ = List.iter
-          (fun {feed; _} -> printf "%s\n" (Feeds.string_of_feed feed))
-          Feeds.planet_feeds
+(* Main
+ ***********************************************************************)
+
+let planet_feeds = List.map feed_of_info Data.all_feeds
+let _ = write_post ?n:(Some 1) planet_feeds

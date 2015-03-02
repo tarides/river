@@ -1,12 +1,12 @@
 module FeedInfo = struct
   type t = {
     name : string;
-    face : string;
+    face : string option;
     url : string;
     face_height : int;
   }
 
-  let mk_feed ~name ?(face="mugshot/default.jpg") ?(face_height=50) url =
+  let mk_feed ~name ?(face=Some "mugshot/default.jpg") ?(face_height=50) url =
     { name; face; url; face_height}
 end
 
@@ -18,12 +18,12 @@ let srg_syslog =
 
 let anil =
   mk_feed ~name:"Anil Madhavapeddy"
-          ~face:"mugshots/avsm.jpg"
+          ~face:(Some "mugshots/avsm.jpg")
           "http://anil.recoil.org/feeds/atom-ocaml.xml"
 
 let amir =
   mk_feed ~name:"Amir Chaudhry"
-          ~face:"mugshots/amir.jpg"
+          ~face:(Some "mugshots/amir.jpg")
           "http://amirchaudhry.com/tags/ocaml-labs-atom.xml"
 
 let all_feeds = [ srg_syslog; anil; amir ]

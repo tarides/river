@@ -6,3 +6,4 @@ PKG lwt
 PKG syndic
 PKG cohttp
 PKG cow
+PKG netstring

@@ -40,7 +40,7 @@ type contributor = {
   title : string;
   url   : string;
   feed  : feed;
-  face  : string;
+  face  : string option;
   face_height : int
 }
 
@@ -61,4 +61,3 @@ let feed_of_info (feed_info:Data.FeedInfo.t) =
   { name = feed_info.name; face = feed_info.face; title; feed;
     face_height = feed_info.face_height; url = feed_info.url}
 
-let planet_feeds = List.map feed_of_info Data.all_feeds
