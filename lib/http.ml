@@ -33,7 +33,7 @@ let rec get_url url =
         match resp.status with
           | `OK -> Cohttp_lwt_body.to_string body
           | `Moved_permanently -> get_url @@ get_location resp.headers
-          | _ -> raise @@ Status_unhandled (url ^ " " ^ string_of_status resp.status)
+          | _ -> raise @@ Status_unhandled (string_of_status resp.status)
 
 let cache_secs = 3600. (* 1h *)
 let get ?(cache_secs=cache_secs) url =
@@ -58,6 +58,6 @@ let get ?(cache_secs=cache_secs) url =
       eprintf "(cached).\n%!";
       data
     with Status_unhandled s as e ->
-      (eprintf "FAILED: %s" s;
+      (eprintf "FAILED!: %s\n" s;
        raise e)
   )
