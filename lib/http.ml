@@ -32,7 +32,7 @@ let rec get_url url =
   >>= fun (resp, body) ->
         match resp.status with
           | `OK -> Cohttp_lwt_body.to_string body
-          | `Moved_permanently -> get_url @@ get_location resp.headers
+          | `Found | `See_other | `Moved_permanently -> get_url @@ get_location resp.headers
           | _ -> raise @@ Status_unhandled (string_of_status resp.status)
 
 let cache_secs = 3600. (* 1h *)
