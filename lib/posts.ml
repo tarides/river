@@ -255,8 +255,8 @@ let get_posts ?n ?(ofs=0) planet_feeds =
   | None -> posts
   | Some n -> take n posts
 
-let write_post ?n ?ofs ~file planet_feeds =
-  let posts = get_posts ?n ?ofs planet_feeds in
+let write_post ?num_posts ?ofs ~file planet_feeds =
+  let posts = get_posts ?n:num_posts ?ofs planet_feeds in
   let recentList = List.map (fun p ->
                      let date = date_of_post p in
                      let title = p.title in

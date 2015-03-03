@@ -21,7 +21,7 @@ let time_of_secs s =
   let h = m / 60 and m = m mod 60 in
   sprintf "%i:%02im%is" h m s
 
-exception Status_unknown of string
+exception Status_unhandled of string
 
 let get_location headers =
   let (k,v) = List.find (fun (k,v) -> k = "location") @@ Header.to_list headers
@@ -33,7 +33,7 @@ let rec get_url url =
         match resp.status with
           | `OK -> Cohttp_lwt_body.to_string body
           | `Moved_permanently -> get_url @@ get_location resp.headers
-          | _ -> raise @@ Status_unknown (url ^ " " ^ string_of_status resp.status)
+          | _ -> raise @@ Status_unhandled (url ^ " " ^ string_of_status resp.status)
 
 let cache_secs = 3600. (* 1h *)
 let get ?(cache_secs=cache_secs) url =
@@ -49,6 +49,7 @@ let get ?(cache_secs=cache_secs) url =
     data in
   if Sys.file_exists fn && age fn <= cache_secs then get_from_cache()
   else (
+    try
       let data = Lwt_main.run @@ get_url url in
       eprintf "done %!";
       let fh = open_out fn in
@@ -56,4 +57,7 @@ let get ?(cache_secs=cache_secs) url =
       close_out fh;
       eprintf "(cached).\n%!";
       data
+    with Status_unhandled s as e ->
+      (eprintf "FAILED: %s" s;
+       raise e)
   )

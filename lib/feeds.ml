@@ -52,12 +52,18 @@ let classify_feed ~xmlbase (xml: string) =
                 Broken "Neither Atom nor RSS2 feed"
 
 let feed_of_info (feed_info:Data.FeedInfo.t) =
-  let xmlbase = Uri.of_string @@ feed_info.url in
-  let feed = classify_feed ~xmlbase (Http.get feed_info.url) in
-  let title = match feed with
-    | Atom atom -> string_of_text_construct atom.Atom.title
-    | Rss2 ch -> ch.Rss2.title
-    | Broken _ -> "" in
-  { name = feed_info.name; face = feed_info.face; title; feed;
-    face_height = feed_info.face_height; url = feed_info.url}
+  try
+    let xmlbase = Uri.of_string @@ feed_info.url in
+    let feed = classify_feed ~xmlbase (Http.get feed_info.url) in
+    let title = match feed with
+      | Atom atom -> string_of_text_construct atom.Atom.title
+      | Rss2 ch -> ch.Rss2.title
+      | Broken _ -> "" in
+    { name = feed_info.name; face = feed_info.face; title; feed;
+      face_height = feed_info.face_height; url = feed_info.url}
+  with
+  | Status_unhandled s ->
+      { name = feed_info.name; face = feed_info.face; title="";
+        feed = Broken s; face_height = feed_info.face_height;
+        url = feed_info.url }
 
