@@ -1,7 +1,8 @@
-all:
+build:
 	ocamlbuild -j 4 -use-ocamlfind -package syndic,lwt,cohttp.lwt,netstring -tag thread lib/planet.native
 
-www:
+www: build
+	./planet.native
 	cd pages && env PATH=../ucampas:$$PATH ucampas -i -r3 blogs
 
 clean:
