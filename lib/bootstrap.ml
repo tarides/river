@@ -67,6 +67,7 @@ let mk_post_with_face ~url ~title ~blog_url ~blog_title ~blog_name ~author
 " url url face face_height url title blog_url blog_title blog_name content url author date
 
 let mk_body ~recentList ~postList : string =
+  String.concat "" [
 "<head> <title>Blogs</title>
   <link rel=\"alternate\" href=\"http://www.cl.cam.ac.uk/projects/ocamllabs/blogs/rss10.xml\" title=\"\" type=\"application/rss+xml\" />
   <style>
@@ -198,8 +199,9 @@ let mk_body ~recentList ~postList : string =
   <div id=\"container\">
 
   <h4>Recent Posts</h4>
-  <table width=\"90%\">\n" ^ recentList ^
+  <table width=\"90%\">\n";
+  recentList;
 "</table>
-" ^ postList ^
+"; postList ;
 " </div>
-  </body>"
+</body>"]
