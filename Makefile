@@ -1,11 +1,41 @@
-all: www
+# OASIS_START
+# DO NOT EDIT (digest: a3c674b4239234cbbe53afe090018954)
 
-build:
-	ocamlbuild -j 4 -use-ocamlfind -package syndic,lwt,cohttp.lwt,netstring -tag thread lib/planet.native
+SETUP = ocaml setup.ml
 
-www: build
-	./planet.native
-	cd pages && env PATH=../ucampas:$$PATH ucampas -i -r3 blogs
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
+
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
+
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
+
+all:
+	$(SETUP) -all $(ALLFLAGS)
+
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
+
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
+
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
 clean:
-	rm -rf _build *.native *.cmx *.cmi *.o *~
+	$(SETUP) -clean $(CLEANFLAGS)
+
+distclean:
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
+
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+configure:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP

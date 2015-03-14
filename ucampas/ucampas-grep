@@ -1,4 +1,0 @@
-#!/bin/bash
-# search for a HTML substring (grep) in a ucampas working directory from the
-# current location downwards
-find . -name .svn -prune -o -iregex '.*-b\.\(html?\|php\)' -print0 | xargs --no-run-if-empty -0 grep -H "$@"

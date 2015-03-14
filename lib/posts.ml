@@ -2,7 +2,6 @@ open Feeds
 open Nethtml
 open Syndic
 open Printf
-open Bootstrap
 
 type html = Nethtml.document list
 
@@ -255,6 +254,10 @@ let get_posts ?n ?(ofs=0) planet_feeds =
   | None -> posts
   | Some n -> take n posts
 
+let mk_recent _ _ _ _ = ""
+let mk_post _ _ _ _ _ _ _ _ = ""
+let mk_body _ _ = ""
+
 let write_post ?num_posts ?ofs ~file planet_feeds =
   let posts = get_posts ?n:num_posts ?ofs planet_feeds in
   let recentList = List.map (fun p ->
@@ -275,8 +278,6 @@ let write_post ?num_posts ?ofs ~file planet_feeds =
                    let blog_name = p.contributor.name in
                    let blog_title = p.contributor.title in
                    let blog_url = p.contributor.url in
-                   let face = p.contributor.face in
-                   let face_height = p.contributor.face_height in
                    (* Write contents *)
                    let buffer = Buffer.create 0 in
                    let channel = new Netchannels.output_buffer buffer in
@@ -284,12 +285,8 @@ let write_post ?num_posts ?ofs ~file planet_feeds =
                               else toggle (prefix_of_html p.desc 1000) p.desc ~anchor:url in
                    let _ = Nethtml.write channel @@ encode_document desc in
                    let content = Buffer.contents buffer in
-                   match face with
-                     | None -> mk_post url title blog_url blog_title blog_name
-                                       author date content
-                     | Some face -> mk_post_with_face url title blog_url
-                                      blog_title blog_name author date
-                                      content face face_height)
+                   mk_post url title blog_url blog_title
+                           blog_name author date content)
                   posts in
   let body = mk_body (String.concat "\n" recentList)
                      (String.concat "\n<br/><br/><br/>\n" postList) in
@@ -297,4 +294,3 @@ let write_post ?num_posts ?ofs ~file planet_feeds =
   let f = open_out file in
   let () = output_string f body in
   close_out f
-

@@ -1,6 +1,0 @@
-#!/bin/bash
-# Delete recursively (i.e., in the current working directory and all
-# of its subdirectories) any *.{html,php} files for which there exists a
-# *-b.{html,php} file. Also delete all emacs backup files (ending in ~).
-find . -name .svn -prune -o -iregex '.*-b\.\(html?\|php\)\|.*~' -print0 | \
-  perl -0 -pe 's/-b(\.(?:html?|php)\0)$/\1/i' | xargs --no-run-if-empty -0 rm -f

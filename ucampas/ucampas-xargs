@@ -1,4 +1,0 @@
-#!/bin/bash
-# Enumerate all *-b.{html,php} source files (while ignoring .svn metadata),
-# and then feed the result into xargs
-find -name .svn -prune -o -iregex '.*-b\.\(html?\|php\)' -print0 | xargs --no-run-if-empty -0 $*

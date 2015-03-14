@@ -1,8 +1,23 @@
+(*
+ * Copyright (c) 2014, OCaml.org project
+ * Copyright (c) 2015 KC Sivaramakrishnan <sk826@cl.cam.ac.uk>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*)
+
 open Syndic
 open Http
 open Printf
-open Data
-open Data.FeedInfo
 
 (* Utils
 ***********************************************************************)
@@ -25,6 +40,11 @@ let string_of_text_construct : Atom.text_construct -> string = function
 (* Feeds
 ***********************************************************************)
 
+type source = {
+  name : string;
+  url  : string
+}
+
 type feed =
   | Atom of Atom.feed
   | Rss2 of Rss2.channel
@@ -40,8 +60,6 @@ type contributor = {
   title : string;
   url   : string;
   feed  : feed;
-  face  : string option;
-  face_height : int
 }
 
 let classify_feed ~xmlbase (xml: string) =
@@ -51,19 +69,16 @@ let classify_feed ~xmlbase (xml: string) =
           with Rss2.Error.Error _ ->
                 Broken "Neither Atom nor RSS2 feed"
 
-let feed_of_info (feed_info:Data.FeedInfo.t) =
+let contributor_of_source (source : source) =
   try
-    let xmlbase = Uri.of_string @@ feed_info.url in
-    let feed = classify_feed ~xmlbase (Http.get feed_info.url) in
+    let xmlbase = Uri.of_string @@ source.url in
+    let feed = classify_feed ~xmlbase (Http.get source.url) in
     let title = match feed with
     | Atom atom -> string_of_text_construct atom.Atom.title
     | Rss2 ch -> ch.Rss2.title
     | Broken _ -> "" in
-    { name = feed_info.name; face = feed_info.face; title; feed;
-      face_height = feed_info.face_height; url = feed_info.url}
+    { name = source.name; title; feed; url = source.url}
   with
   | Status_unhandled s ->
-      { name = feed_info.name; face = feed_info.face; title="";
-        feed = Broken s; face_height = feed_info.face_height;
-        url = feed_info.url }
-
+      { name = source.name; title=""; feed = Broken s;
+        url = source.url }
