@@ -29,3 +29,5 @@ type post = {
 }
 
 val get_posts: ?n:int -> ?ofs:int -> Feeds.contributor list -> post list
+
+val prefix_of_html: html -> int -> html

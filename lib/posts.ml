@@ -64,50 +64,12 @@ and len_prefix_of_el el len =
 let rec prefix_of_html html len =
   snd(len_prefix_of_html html len)
 
-let date_of_post p =
-  match p.date with
-  | None -> "<Date Unknown>"
-  | Some d ->
-       let open Syndic.Date in
-       sprintf "%s %02d, %d" (string_of_month(month d)) (day d) (year d)
-
 let rec filter_map l f =
   match l with
   | [] -> []
   | a :: tl -> match f a with
               | None -> filter_map tl f
               | Some a -> a :: filter_map tl f
-
-let new_id =
-  let id = ref 0 in
-  fun () -> incr id; sprintf "ocamlorg-post%i" !id
-
-(* [toggle html1 html2] return some piece of html with buttons to pass
-   from [html1] to [html2] and vice versa. *)
-let toggle ?(anchor="") html1 html2 =
-  let button id1 id2 text =
-    Element("a", ["onclick", sprintf "switchContent('%s','%s')" id1 id2;
-                  "class", "btn planet-toggle";
-                  "href", "#" ^ anchor],
-            [Data text])
-  in
-  let id1 = new_id() and id2 = new_id() in
-  [Element("div", ["id", id1],
-           html1 @ [button id1 id2 "Read more..."]);
-   Element("div", ["id", id2; "style", "display: none"],
-           html2 @ [button id2 id1 "Hide"])]
-
-let toggle_script =
-  let script =
-    "function switchContent(id1,id2) {
-     // Get the DOM reference
-     var contentId1 = document.getElementById(id1);
-     var contentId2 = document.getElementById(id2);
-     // Toggle
-     contentId1.style.display = \"none\";
-     contentId2.style.display = \"block\";
-     }\n" in
-  [Element("script", ["type", "text/javascript"], [Data script])]
 
 let encode_html =
   Netencoding.Html.encode ~prefer_name:false ~in_enc:`Enc_utf8 ()

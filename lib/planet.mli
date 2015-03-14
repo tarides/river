@@ -34,10 +34,12 @@ type post = {
   title : string;
   link  : Uri.t option;
   date  : Syndic.Date.t option;
-  contributor : Feeds.contributor;
+  contributor : contributor;
   author : string;
   email : string;
   desc  : html;
 }
 
 val get_posts: ?n:int -> ?ofs:int -> string -> post list
+
+val prefix_of_html: html -> int -> html
