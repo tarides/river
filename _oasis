@@ -7,9 +7,22 @@ BuildTools:   ocamlbuild
 OASISFormat:  0.4
 Plugins:      Meta (0.4), DevFiles (0.4)
 
+Flag examples
+  Description: build the examples
+  Default: false
+
 Library "ocaml-planet"
   Path:             lib/
   Findlibname:      ocaml_planet
   InternalModules:  Http, Feeds, Posts, Utils
   Modules:          Planet
   BuildDepends:     lwt, syndic, netstring, cohttp.lwt
+
+Executable "ocl-planet"
+  Path:             examples/
+  MainIs:           ocl_planet.ml
+  Build$:           flag(examples)
+  CompiledObject:   best
+  Install:          false
+  BuildDepends:     netstring, syndic, ocaml_planet
+
