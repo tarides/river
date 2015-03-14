@@ -19,24 +19,6 @@ open Syndic
 open Http
 open Printf
 
-(* Utils
-***********************************************************************)
-
-(* Remove all tags *)
-let rec syndic_to_buffer b = function
-  | XML.Node (_, _, subs) -> List.iter (syndic_to_buffer b) subs
-  | XML.Data (_, d) -> Buffer.add_string b d
-
-let syndic_to_string x =
-  let b = Buffer.create 1024 in
-  List.iter (syndic_to_buffer b) x;
-  Buffer.contents b
-
-let string_of_text_construct : Atom.text_construct -> string = function
-  (* FIXME: we probably would like to parse the HTML and remove the tags *)
-  | Atom.Text s | Atom.Html(_,s) -> s
-  | Atom.Xhtml(_, x) -> syndic_to_string x
-
 (* Feeds
 ***********************************************************************)
 
@@ -62,6 +44,17 @@ type contributor = {
   feed  : feed;
 }
 
+let gather_sources file_name =
+  let add_feed acc line =
+    try
+      let i = String.index line '|' in
+      let name = String.sub line 0 i in
+      let url = String.sub line (i+1)
+          (String.length line - i - 1) in
+      {name;url} :: acc
+    with Not_found -> acc in
+  List.fold_left add_feed [] (Utils.lines_of_file file_name)
+
 let classify_feed ~xmlbase (xml: string) =
   try Atom(Atom.parse ~xmlbase (Xmlm.make_input (`String(0, xml))))
   with Atom.Error.Error _ ->
@@ -74,7 +67,7 @@ let contributor_of_source (source : source) =
     let xmlbase = Uri.of_string @@ source.url in
     let feed = classify_feed ~xmlbase (Http.get source.url) in
     let title = match feed with
-    | Atom atom -> string_of_text_construct atom.Atom.title
+    | Atom atom -> Utils.string_of_text_construct atom.Atom.title
     | Rss2 ch -> ch.Rss2.title
     | Broken _ -> "" in
     { name = source.name; title; feed; url = source.url}

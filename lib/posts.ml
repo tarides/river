@@ -1,3 +1,20 @@
+(*
+ * Copyright (c) 2014, OCaml.org project
+ * Copyright (c) 2015 KC Sivaramakrishnan <sk826@cl.cam.ac.uk>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*)
+
 open Feeds
 open Nethtml
 open Syndic
@@ -212,7 +229,7 @@ let post_of_atom ~contributor (e: Atom.entry) =
        | Some(Xhtml(xmlbase, h)) -> html_of_syndic ?xmlbase h
        | None -> [] in
   let author, _ = e.authors in
-  { title = string_of_text_construct e.title;
+  { title = Utils.string_of_text_construct e.title;
     link;  date; contributor; author = author.name;
     email = ""; desc }
 
@@ -245,7 +262,6 @@ let posts_of_contributor c =
   | Rss2 ch -> List.map (post_of_rss2 ~contributor:c) ch.Rss2.items
   | Broken _ -> []
 
-
 let get_posts ?n ?(ofs=0) planet_feeds =
   let posts = List.concat @@ List.map posts_of_contributor planet_feeds in
   let posts = List.sort post_compare posts in
@@ -253,44 +269,3 @@ let get_posts ?n ?(ofs=0) planet_feeds =
   match n with
   | None -> posts
   | Some n -> take n posts
-
-let mk_recent _ _ _ _ = ""
-let mk_post _ _ _ _ _ _ _ _ = ""
-let mk_body _ _ = ""
-
-let write_post ?num_posts ?ofs ~file planet_feeds =
-  let posts = get_posts ?n:num_posts ?ofs planet_feeds in
-  let recentList = List.map (fun p ->
-                     let date = date_of_post p in
-                     let title = p.title in
-                     let url = match p.link with
-                       | Some u -> Uri.to_string u
-                       | None -> Digest.to_hex (Digest.string (p.title)) in
-                     let author = p.author in
-                     mk_recent date url author title) posts in
-  let postList = List.map (fun p ->
-                   let title = p.title in
-                   let date = date_of_post p in
-                   let url = match p.link with
-                     | Some u -> Uri.to_string u
-                     | None -> Digest.to_hex (Digest.string (p.title)) in
-                   let author = p.author in
-                   let blog_name = p.contributor.name in
-                   let blog_title = p.contributor.title in
-                   let blog_url = p.contributor.url in
-                   (* Write contents *)
-                   let buffer = Buffer.create 0 in
-                   let channel = new Netchannels.output_buffer buffer in
-                   let desc = if length_html p.desc < 1000 then p.desc
-                              else toggle (prefix_of_html p.desc 1000) p.desc ~anchor:url in
-                   let _ = Nethtml.write channel @@ encode_document desc in
-                   let content = Buffer.contents buffer in
-                   mk_post url title blog_url blog_title
-                           blog_name author date content)
-                  posts in
-  let body = mk_body (String.concat "\n" recentList)
-                     (String.concat "\n<br/><br/><br/>\n" postList) in
-  (* write to file *)
-  let f = open_out file in
-  let () = output_string f body in
-  close_out f
