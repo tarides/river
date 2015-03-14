@@ -15,21 +15,25 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 *)
 
+
 type html = Nethtml.document list
+
 
 type feed =
     Atom of Syndic.Atom.feed
   | Rss2 of Syndic.Rss2.channel
   | Broken of string
+(** The feed is either an Atom or Rss2. If the feed is Broken [message], then
+    the [message] gives the reason. *)
 
 type contributor = {
-  name : string;
+  name  : string;
   title : string;
-  url : string;
-  feed : feed;
+  url   : string;
+  feed  : feed;
 }
+(** Feed information. *)
 
-(** Our representation of a "post". *)
 type post = {
   title : string;
   link  : Uri.t option;
@@ -39,7 +43,23 @@ type post = {
   email : string;
   desc  : html;
 }
+(** Each post has a title, author, email and content (desc). The link, if
+    available, points to the url of the post. *)
 
 val get_posts: ?n:int -> ?ofs:int -> string -> post list
+(** [get_posts n ofs fname] fetches a deduplicated list of posts, sorted based
+    on the date, with the lastest post appearing first. The optional argument [n]
+    fetches the first [n] posts. By default, all the posts are fetched. [ofs]
+    represents the offset into the post list. For example, [get_posts 10 10]
+    fetches the posts 10 to 20.
+
+    [fname] is the input file with the list of feeds. The format is:
+
+      <feed_name>|<feed_url>
+      <feed_name>|<feed_url>
+      ...
+  *)
 
 val prefix_of_html: html -> int -> html
+(** [prefix_of_html html n] truncates the given document to [n] characters.
+    The truncated document is ensured to be a well-formed docuemnt. *)
