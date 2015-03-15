@@ -18,9 +18,10 @@ remove: [
   ["rm" "-f" "%{bin}%/ocaml_planet"]
 ]
 depends: [
-  "syndic" {>= "1.2"}
-  "cohttp" {>= "0.15.1"}
   "ocamlnet" {>= "4.0.2"}
+  "lwt" {>= "2.4.7"}
+  "cohttp" {>= "0.15.1"}
+  "syndic" {>= "1.2"}
   "ocamlfind" {build}
 ]
 available: [ocaml-version >= "4.01.0"]
