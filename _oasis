@@ -25,4 +25,3 @@ Executable "ocl-planet"
   CompiledObject:   best
   Install:          false
   BuildDepends:     netstring, syndic, ocaml_planet
-

@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: dcb42d8604ead17af5fa50a75d66ea8a)
+version = "0.1"
+description = "A RSS/Atom feed aggregator"
+requires = "lwt syndic netstring cohttp.lwt"
+archive(byte) = "ocaml-planet.cma"
+archive(byte, plugin) = "ocaml-planet.cma"
+archive(native) = "ocaml-planet.cmxa"
+archive(native, plugin) = "ocaml-planet.cmxs"
+exists_if = "ocaml-planet.cma"
+# OASIS_STOP
+

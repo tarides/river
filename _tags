@@ -1,0 +1,34 @@
+# OASIS_START
+# DO NOT EDIT (digest: 55d50d935e286d768e15d23b38efad56)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+true: annot, bin_annot
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library ocaml-planet
+"lib/ocaml-planet.cmxs": use_ocaml-planet
+<lib/*.ml{,i,y}>: pkg_cohttp.lwt
+<lib/*.ml{,i,y}>: pkg_lwt
+<lib/*.ml{,i,y}>: pkg_netstring
+<lib/*.ml{,i,y}>: pkg_syndic
+# Executable ocl-planet
+<examples/ocl_planet.{native,byte}>: pkg_cohttp.lwt
+<examples/ocl_planet.{native,byte}>: pkg_lwt
+<examples/ocl_planet.{native,byte}>: pkg_netstring
+<examples/ocl_planet.{native,byte}>: pkg_syndic
+<examples/ocl_planet.{native,byte}>: use_ocaml-planet
+<examples/*.ml{,i,y}>: pkg_cohttp.lwt
+<examples/*.ml{,i,y}>: pkg_lwt
+<examples/*.ml{,i,y}>: pkg_netstring
+<examples/*.ml{,i,y}>: pkg_syndic
+<examples/*.ml{,i,y}>: use_ocaml-planet
+# OASIS_STOP
