@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 *)
 
-open Feeds
+open Pl_feeds
 open Nethtml
 open Syndic
 open Printf
@@ -191,7 +191,7 @@ let post_of_atom ~contributor (e: Atom.entry) =
        | Some(Xhtml(xmlbase, h)) -> html_of_syndic ?xmlbase h
        | None -> [] in
   let author, _ = e.authors in
-  { title = Utils.string_of_text_construct e.title;
+  { title = Pl_utils.string_of_text_construct e.title;
     link;  date; contributor; author = author.name;
     email = ""; desc }
 

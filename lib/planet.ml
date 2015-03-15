@@ -15,8 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 *)
 
-include Posts
-include Feeds
+include Pl_posts
+include Pl_feeds
 
 let get_posts ?n ?ofs file_name =
   let sources = gather_sources file_name in

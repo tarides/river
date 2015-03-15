@@ -14,7 +14,7 @@ Flag examples
 Library "ocaml-planet"
   Path:             lib/
   Findlibname:      ocaml_planet
-  InternalModules:  Http, Feeds, Posts, Utils
+  InternalModules:  Pl_http, Pl_feeds, Pl_posts, Pl_utils
   Modules:          Planet
   BuildDepends:     lwt, syndic, netstring, cohttp.lwt
 

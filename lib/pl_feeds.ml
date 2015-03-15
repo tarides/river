@@ -16,7 +16,7 @@
 *)
 
 open Syndic
-open Http
+open Pl_http
 open Printf
 
 (* Feeds
@@ -53,7 +53,7 @@ let gather_sources file_name =
           (String.length line - i - 1) in
       {name;url} :: acc
     with Not_found -> acc in
-  List.fold_left add_feed [] (Utils.lines_of_file file_name)
+  List.fold_left add_feed [] (Pl_utils.lines_of_file file_name)
 
 let classify_feed ~xmlbase (xml: string) =
   try Atom(Atom.parse ~xmlbase (Xmlm.make_input (`String(0, xml))))
@@ -65,9 +65,9 @@ let classify_feed ~xmlbase (xml: string) =
 let contributor_of_source (source : source) =
   try
     let xmlbase = Uri.of_string @@ source.url in
-    let feed = classify_feed ~xmlbase (Http.get source.url) in
+    let feed = classify_feed ~xmlbase (Pl_http.get source.url) in
     let title = match feed with
-    | Atom atom -> Utils.string_of_text_construct atom.Atom.title
+    | Atom atom -> Pl_utils.string_of_text_construct atom.Atom.title
     | Rss2 ch -> ch.Rss2.title
     | Broken _ -> "" in
     { name = source.name; title; feed; url = source.url}

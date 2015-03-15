@@ -22,12 +22,12 @@ type post = {
   title : string;
   link  : Uri.t option;
   date  : Syndic.Date.t option;
-  contributor : Feeds.contributor;
+  contributor : Pl_feeds.contributor;
   author : string;
   email : string;
   desc  : html;
 }
 
-val get_posts: ?n:int -> ?ofs:int -> Feeds.contributor list -> post list
+val get_posts: ?n:int -> ?ofs:int -> Pl_feeds.contributor list -> post list
 
 val prefix_of_html: html -> int -> html
