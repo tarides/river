@@ -18,7 +18,6 @@
 
 type html = Nethtml.document list
 
-
 type feed =
     Atom of Syndic.Atom.feed
   | Rss2 of Syndic.Rss2.channel
