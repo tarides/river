@@ -15,7 +15,6 @@ build: [
 install: [make "install"]
 remove: [
   ["ocamlfind" "remove" "ocaml_planet"]
-  ["rm" "-f" "%{bin}%/ocaml_planet"]
 ]
 depends: [
   "ocamlnet" {>= "4.0.2"}
