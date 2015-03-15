@@ -44,7 +44,7 @@ type post = {
   desc  : html;
 }
 (** Each post has a title, author, email and content (desc). The link, if
-    available, points to the url of the post. *)
+    available, points to the location of the original post. *)
 
 val get_posts: ?n:int -> ?ofs:int -> string -> post list
 (** [get_posts n ofs fname] fetches a deduplicated list of posts, sorted based
