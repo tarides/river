@@ -64,3 +64,5 @@ val prefix_of_html: html -> int -> html
     The truncated document is ensured to be a well-formed docuemnt. *)
 
 val mk_entries: post list -> Syndic.Atom.entry list
+(** [mk_entries posts] creates a list of atom entries, which can then be used to
+    create an atom feed that is an aggregate of the posts. *)
