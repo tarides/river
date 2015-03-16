@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 55d50d935e286d768e15d23b38efad56)
+# DO NOT EDIT (digest: 33e4b48179193d82c21707e4f28081a6)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -26,6 +26,12 @@ true: annot, bin_annot
 <examples/ocl_planet.{native,byte}>: pkg_netstring
 <examples/ocl_planet.{native,byte}>: pkg_syndic
 <examples/ocl_planet.{native,byte}>: use_ocaml-planet
+# Executable write-atom
+<examples/write_atom.{native,byte}>: pkg_cohttp.lwt
+<examples/write_atom.{native,byte}>: pkg_lwt
+<examples/write_atom.{native,byte}>: pkg_netstring
+<examples/write_atom.{native,byte}>: pkg_syndic
+<examples/write_atom.{native,byte}>: use_ocaml-planet
 <examples/*.ml{,i,y}>: pkg_cohttp.lwt
 <examples/*.ml{,i,y}>: pkg_lwt
 <examples/*.ml{,i,y}>: pkg_netstring

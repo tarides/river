@@ -62,3 +62,5 @@ val get_posts: ?n:int -> ?ofs:int -> string -> post list
 val prefix_of_html: html -> int -> html
 (** [prefix_of_html html n] truncates the given document to [n] characters.
     The truncated document is ensured to be a well-formed docuemnt. *)
+
+val mk_entries: post list -> Syndic.Atom.entry list

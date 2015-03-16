@@ -25,3 +25,11 @@ Executable "ocl-planet"
   CompiledObject:   best
   Install:          false
   BuildDepends:     netstring, syndic, ocaml_planet
+
+Executable "write-atom"
+  Path:             examples/
+  MainIs:           write_atom.ml
+  Build$:           flag(examples)
+  CompiledObject:   best
+  Install:          false
+  BuildDepends:     netstring, syndic, ocaml_planet

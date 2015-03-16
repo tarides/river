@@ -17,8 +17,9 @@
 
 open Pl_feeds
 open Nethtml
-open Syndic
 open Printf
+open Syndic
+open Syndic.Atom
 
 type html = Nethtml.document list
 
@@ -223,6 +224,35 @@ let posts_of_contributor c =
   | Atom f -> List.map (post_of_atom ~contributor:c) f.Atom.entries
   | Rss2 ch -> List.map (post_of_rss2 ~contributor:c) ch.Rss2.items
   | Broken _ -> []
+
+
+let string_of_html html =
+  let buffer = Buffer.create 1024 in
+  let channel = new Netchannels.output_buffer buffer in
+  let () = Nethtml.write channel @@ encode_document html in
+  Buffer.contents buffer
+
+let mk_entry post : entry =
+  let content = Html (None, string_of_html post.desc) in
+  let contributors = [ author ~uri:(Uri.of_string post.contributor.url)
+                              post.contributor.name ] in
+  let links = match post.link with
+              | Some l -> [ link Syndic.Atom.Alternate l ]
+              | None -> [] in
+  (* TODO: include source *)
+  let id = match post.link with
+           | Some l -> Uri.to_string l
+           | None -> Digest.to_hex (Digest.string (post.title)) in
+  let authors = (author ~email:post.email post.author, []) in
+  let title : text_construct = Text post.title in
+  let updated = match post.date with
+                  (* Atom entry requires a date but RSS2 does not. So if a date
+                   * is not available, just capture the current date. *)
+                  | None -> CalendarLib.Calendar.now ()
+                  | Some d -> d in
+  entry ~content ~contributors ~links ~id ~authors ~title ~updated ()
+
+let mk_entries posts = List.map mk_entry posts
 
 let get_posts ?n ?(ofs=0) planet_feeds =
   let posts = List.concat @@ List.map posts_of_contributor planet_feeds in
