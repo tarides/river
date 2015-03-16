@@ -5,6 +5,7 @@ A library for aggregating RSS2 and Atom feeds in OCaml.
 Features:
 
 * Performs deduplication.
-* Sorts the posts from most recent to oldest.
 * Supports pagination and generating well-formed html prefix snippets.
+* Support for generating aggregate feeds.
+* Sorts the posts from most recent to oldest.
 * Depends on ocamlnet for html parsing.
