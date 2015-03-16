@@ -17,4 +17,6 @@
 
 exception Status_unhandled of string
 
+exception Timeout
+
 val get : ?cache_secs:float -> string -> string

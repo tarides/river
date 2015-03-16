@@ -40,6 +40,8 @@ let time_of_secs s =
 
 exception Status_unhandled of string
 
+exception Timeout
+
 let get_location headers =
   let (k,v) = List.find (fun (k,v) -> k = "location") @@ Header.to_list headers
   in v
@@ -53,7 +55,7 @@ let rec get_url url =
             | `Found | `See_other | `Moved_permanently -> get_url @@ get_location resp.headers
             | _ -> raise @@ Status_unhandled (string_of_status resp.status) in
   let timeout = Lwt_unix.sleep (float_of_int 3) >>= fun () ->
-                Lwt.fail (Status_unhandled "Timeout") in
+                Lwt.fail Timeout in
   Lwt.pick [main; timeout]
 
 
@@ -82,4 +84,5 @@ let get ?(cache_secs=cache_secs) url =
       data
     with
     | (Status_unhandled s | Failure s) as e -> (eprintf "Failed: %s\n" s; raise e)
+    | Timeout as e -> (eprintf "Failed: Timeout\n"; raise e)
   )

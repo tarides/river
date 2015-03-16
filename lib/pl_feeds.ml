@@ -72,6 +72,10 @@ let contributor_of_source (source : source) =
     | Broken _ -> "" in
     { name = source.name; title; feed; url = source.url}
   with
-  | Status_unhandled s | Failure s->
+  | Status_unhandled s | Failure s ->
       { name = source.name; title=""; feed = Broken s;
         url = source.url }
+  | Timeout ->
+      { name = source.name; title=""; feed = Broken "Timeout";
+        url = source.url }
+
