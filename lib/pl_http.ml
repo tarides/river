@@ -48,14 +48,15 @@ let get_location headers =
 
 let rec get_url url =
   let main =
-    Cohttp_lwt_unix.Client.get @@ Uri.of_string url
-    >>= fun (resp, body) ->
-          match resp.status with
-            | `OK -> Cohttp_lwt_body.to_string body
-            | `Found | `See_other | `Moved_permanently -> get_url @@ get_location resp.headers
-            | _ -> raise @@ Status_unhandled (string_of_status resp.status) in
+    Cohttp_lwt_unix.Client.get @@ Uri.of_string url >>= fun (resp, body) ->
+    match resp.status with
+      | `OK -> Cohttp_lwt_body.to_string body
+      | `Found | `See_other | `Moved_permanently -> get_url @@ get_location resp.headers
+      | _ -> raise @@ Status_unhandled (string_of_status resp.status)
+  in
   let timeout = Lwt_unix.sleep (float_of_int 3) >>= fun () ->
-                Lwt.fail Timeout in
+                Lwt.fail Timeout
+  in
   Lwt.pick [main; timeout]
 
 
