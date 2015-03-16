@@ -80,7 +80,6 @@ let get ?(cache_secs=cache_secs) url =
       close_out fh;
       eprintf "(cached).\n%!";
       data
-    with Status_unhandled s as e ->
-      (eprintf "FAILED!: %s\n" s;
-       raise e)
+    with
+    | (Status_unhandled s | Failure s) as e -> (eprintf "Failed: %s\n" s; raise e)
   )
