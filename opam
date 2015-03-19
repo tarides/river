@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name:         "ocaml-planet"
-version:      "0.1"
+version:      "0.1.1"
 maintainer:   "sk826@cl.cam.ac.uk"
 authors:      "KC Sivaramakrishnan"
 license:      "ISC"
