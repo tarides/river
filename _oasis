@@ -1,4 +1,4 @@
-Name:         ocaml-planet
+Name:         river
 Version:      0.1.1
 Synopsis:     A RSS/Atom feed aggregator
 Authors:      KC Sivaramakrishnan
@@ -11,9 +11,9 @@ Flag examples
   Description: build the examples
   Default: false
 
-Library "ocaml-planet"
+Library "river"
   Path:             lib/
-  Findlibname:      ocaml_planet
+  Findlibname:      river
   InternalModules:  Pl_http, Pl_feeds, Pl_posts, Pl_utils
   Modules:          Planet
   BuildDepends:     lwt, syndic, netstring, cohttp.lwt
@@ -24,7 +24,7 @@ Executable "ocl-planet"
   Build$:           flag(examples)
   CompiledObject:   best
   Install:          false
-  BuildDepends:     netstring, syndic, ocaml_planet
+  BuildDepends:     netstring, syndic, river
 
 Executable "write-atom"
   Path:             examples/
@@ -32,4 +32,4 @@ Executable "write-atom"
   Build$:           flag(examples)
   CompiledObject:   best
   Install:          false
-  BuildDepends:     netstring, syndic, ocaml_planet
+  BuildDepends:     netstring, syndic, river

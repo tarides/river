@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 33e4b48179193d82c21707e4f28081a6)
+# DO NOT EDIT (digest: 8663c3ab8656a06dd380f152cf431435)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -14,8 +14,8 @@ true: annot, bin_annot
 ".git": not_hygienic
 "_darcs": -traverse
 "_darcs": not_hygienic
-# Library ocaml-planet
-"lib/ocaml-planet.cmxs": use_ocaml-planet
+# Library river
+"lib/river.cmxs": use_river
 <lib/*.ml{,i,y}>: pkg_cohttp.lwt
 <lib/*.ml{,i,y}>: pkg_lwt
 <lib/*.ml{,i,y}>: pkg_netstring
@@ -25,16 +25,16 @@ true: annot, bin_annot
 <examples/ocl_planet.{native,byte}>: pkg_lwt
 <examples/ocl_planet.{native,byte}>: pkg_netstring
 <examples/ocl_planet.{native,byte}>: pkg_syndic
-<examples/ocl_planet.{native,byte}>: use_ocaml-planet
+<examples/ocl_planet.{native,byte}>: use_river
 # Executable write-atom
 <examples/write_atom.{native,byte}>: pkg_cohttp.lwt
 <examples/write_atom.{native,byte}>: pkg_lwt
 <examples/write_atom.{native,byte}>: pkg_netstring
 <examples/write_atom.{native,byte}>: pkg_syndic
-<examples/write_atom.{native,byte}>: use_ocaml-planet
+<examples/write_atom.{native,byte}>: use_river
 <examples/*.ml{,i,y}>: pkg_cohttp.lwt
 <examples/*.ml{,i,y}>: pkg_lwt
 <examples/*.ml{,i,y}>: pkg_netstring
 <examples/*.ml{,i,y}>: pkg_syndic
-<examples/*.ml{,i,y}>: use_ocaml-planet
+<examples/*.ml{,i,y}>: use_river
 # OASIS_STOP

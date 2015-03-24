@@ -1,4 +1,4 @@
-# ocaml-planet
+# River
 
 A library for aggregating RSS2 and Atom feeds in OCaml.
 
