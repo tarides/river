@@ -14,8 +14,8 @@ Flag examples
 Library "river"
   Path:             lib/
   Findlibname:      river
-  InternalModules:  Pl_http, Pl_feeds, Pl_posts, Pl_utils
-  Modules:          Planet
+  InternalModules:  Ri_http, Ri_feeds, Ri_posts, Ri_utils
+  Modules:          River
   BuildDepends:     lwt, syndic, netstring, cohttp.lwt
 
 Executable "ocl-planet"
