@@ -42,22 +42,34 @@ exception Status_unhandled of string
 
 exception Timeout
 
+let max_num_redirects = 5
+
 let get_location headers =
   let (k,v) = List.find (fun (k,v) -> k = "location") @@ Header.to_list headers
   in v
 
-let rec get_url url =
-  let main =
-    Cohttp_lwt_unix.Client.get @@ Uri.of_string url >>= fun (resp, body) ->
-    match resp.status with
-    | `OK -> Cohttp_lwt_body.to_string body
-    | `Found | `See_other | `Moved_permanently -> get_url @@ get_location resp.headers
-    | _ -> raise @@ Status_unhandled (string_of_status resp.status)
-  in
-  let timeout = Lwt_unix.sleep (float_of_int 3) >>= fun () ->
-                Lwt.fail Timeout
-  in
-  Lwt.pick [main; timeout]
+let rec get_uri uri = function
+  | 0 -> raise (Status_unhandled "Too many redirects")
+  | n ->
+      let main =
+        Cohttp_lwt_unix.Client.get uri >>= fun (resp, body) ->
+        match resp.status with
+        | `OK -> Cohttp_lwt_body.to_string body
+        | `Found | `See_other | `Moved_permanently ->
+            (let l = Uri.of_string @@ get_location resp.headers in
+            match Uri.host l with
+            | Some _ -> get_uri l (n-1)
+            | None ->
+                let host = Uri.host uri in
+                let scheme = Uri.scheme uri in
+                let new_uri = Uri.with_scheme (Uri.with_host l host) scheme in
+                get_uri new_uri (n-1))
+        | _ -> raise @@ Status_unhandled (string_of_status resp.status)
+      in
+      let timeout = Lwt_unix.sleep (float_of_int 3) >>= fun () ->
+                    Lwt.fail Timeout
+      in
+      Lwt.pick [main; timeout]
 
 
 let cache_secs = 3600. (* 1h *)
@@ -76,7 +88,7 @@ let get ?(cache_secs=cache_secs) url =
   if Sys.file_exists fn && age fn <= cache_secs then get_from_cache()
   else (
     try
-      let data = Lwt_main.run @@ get_url url in
+      let data = Lwt_main.run @@ get_uri (Uri.of_string url) max_num_redirects in
       eprintf "done %!";
       let fh = open_out fn in
       output_value fh data;

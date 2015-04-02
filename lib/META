@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7f92bc0a94b922f1a5178ec0b6ffae72)
-version = "0.1.1"
+# DO NOT EDIT (digest: 9272c232c186df381ec324edec953109)
+version = "0.1.3"
 description = "A RSS/Atom feed aggregator"
 requires = "lwt syndic netstring cohttp.lwt"
 archive(byte) = "river.cma"
