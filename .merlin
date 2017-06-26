@@ -3,6 +3,7 @@ S lib
 B _build/lib
 
 PKG lwt
+PKG ptime.clock.os
 PKG syndic
 PKG cohttp
 PKG cow

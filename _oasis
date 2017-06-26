@@ -16,7 +16,7 @@ Library "river"
   Findlibname:      river
   InternalModules:  Ri_http, Ri_feeds, Ri_posts, Ri_utils
   Modules:          River
-  BuildDepends:     lwt, syndic, netstring, cohttp.lwt
+  BuildDepends:     lwt, syndic, netstring, cohttp.lwt, ptime.clock.os
 
 Executable "ocl-planet"
   Path:             examples/
