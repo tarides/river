@@ -237,18 +237,18 @@ let mk_entry post : entry =
   let contributors = [ author ~uri:(Uri.of_string post.contributor.url)
                               post.contributor.name ] in
   let links = match post.link with
-              | Some l -> [ link Syndic.Atom.Alternate l ]
+              | Some l -> [ link ~rel:Syndic.Atom.Alternate l ]
               | None -> [] in
   (* TODO: include source *)
   let id = match post.link with
-           | Some l -> Uri.to_string l
-           | None -> Digest.to_hex (Digest.string (post.title)) in
+           | Some l -> l
+           | None -> Uri.of_string (Digest.to_hex (Digest.string (post.title))) in
   let authors = (author ~email:post.email post.author, []) in
   let title : text_construct = Text post.title in
   let updated = match post.date with
                   (* Atom entry requires a date but RSS2 does not. So if a date
                    * is not available, just capture the current date. *)
-                  | None -> CalendarLib.Calendar.now ()
+                  | None -> Ptime_clock.now ()
                   | Some d -> d in
   entry ~content ~contributors ~links ~id ~authors ~title ~updated ()
 
