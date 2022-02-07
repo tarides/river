@@ -33,4 +33,5 @@
    (>= 5.0.0))
   ptime
   lwt
+  ocamlnet
   (odoc :with-doc)))
