@@ -13,25 +13,16 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*)
+ *)
 
-open River
-open Syndic.Atom
+exception Status_unhandled of string
+exception Timeout
 
-let main () =
-  let in_file = "examples/data_blog.txt" in
-  let out_file = "atom.xml" in
-  let posts = get_posts in_file in
-  let entries = mk_entries posts in
-  let feed =
-    let authors = [ author "OCaml Labs" ] in
-    let id = Uri.of_string "http://ocaml.io/blogs/atom.xml" in
-    let links = [ link ~rel:Self id ] in
-    let title : text_construct = Text "OCaml Labs: Real World Functional Programming" in
-    let updated = Ptime_clock.now () in
-    feed ~authors ~links ~id ~title ~updated entries in
-  let out_channel = open_out out_file in
-  output feed (`Channel out_channel);
-  close_out out_channel
+val get : string -> string
+(** [get uri] returns the body of the response of the HTTP GET request on [uri].
 
-let () = main ()
+    If the answer of is a redirection, it will follow the redirections up to 5
+    redirects.
+
+    The answer is cached for [cache_secs] seconds, where [cache_secs] is 3600
+    seconds (1 hour) by default. *)
