@@ -29,7 +29,16 @@ let date post = post.Post.date
 let feed post = post.Post.feed
 let author post = post.Post.author
 let email post = post.Post.email
-let content post = Post.string_of_html post.Post.description
-let meta_description post = Meta.description (content post)
-let seo_image post = Meta.preview_image (content post)
+let content post = Post.string_of_html post.Post.content
+
+let meta_description post =
+  match Post.fetch_link post with
+  | None -> None
+  | Some response -> Meta.description response
+
+let seo_image post =
+  match Post.fetch_link post with
+  | None -> None
+  | Some response -> Meta.preview_image response
+
 let create_atom_entries = Post.mk_entries

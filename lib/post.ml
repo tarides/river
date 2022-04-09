@@ -22,7 +22,8 @@ type t = {
   feed : Feed.t;
   author : string;
   email : string;
-  description : Nethtml.document list;
+  content : Nethtml.document list;
+  mutable link_response : (string, string) result option;
 }
 
 let rec len_prefix_of_html html len =
@@ -167,7 +168,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
   let date =
     match e.published with Some _ -> e.published | None -> Some e.updated
   in
-  let description =
+  let content =
     match e.content with
     | Some (Text s) -> html_of_text s
     | Some (Html (xmlbase, s)) -> html_of_text ?xmlbase s
@@ -187,18 +188,21 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
     feed;
     author = author.name;
     email = "";
-    description;
+    content;
+    link_response = None;
   }
 
 let post_of_rss2 ~(feed : Feed.t) it =
-  let title, description =
+  let title, content =
     match it.Syndic.Rss2.story with
     | All (t, xmlbase, d) -> (
         ( t,
           match it.content with
           | _, "" -> html_of_text ?xmlbase d
           | xmlbase, c -> html_of_text ?xmlbase c ))
-    | Title t -> (t, [])
+    | Title t ->
+        let xmlbase, c = it.content in
+        (t, html_of_text ?xmlbase c)
     | Description (xmlbase, d) -> (
         ( "",
           match it.content with
@@ -221,8 +225,9 @@ let post_of_rss2 ~(feed : Feed.t) it =
     feed;
     author = feed.name;
     email = string_of_option it.author;
-    description;
+    content;
     date = it.pubDate;
+    link_response = None;
   }
 
 let posts_of_feed c =
@@ -237,7 +242,7 @@ let string_of_html html =
   Buffer.contents buffer
 
 let mk_entry post =
-  let content = Syndic.Atom.Html (None, string_of_html post.description) in
+  let content = Syndic.Atom.Html (None, string_of_html post.content) in
   let contributors =
     [ Syndic.Atom.author ~uri:(Uri.of_string post.feed.url) post.feed.name ]
   in
@@ -271,3 +276,18 @@ let get_posts ?n ?(ofs = 0) planet_feeds =
   let posts = List.sort post_compare posts in
   let posts = remove ofs posts in
   match n with None -> posts | Some n -> take n posts
+
+(* Fetch the link response and cache it. *)
+let fetch_link t =
+  match (t.link, t.link_response) with
+  | None, _ -> None
+  | Some _, Some (Ok x) -> Some x
+  | Some _, Some (Error _) -> None
+  | Some link, None -> (
+      try
+        let response = Http.get (Uri.to_string link) in
+        t.link_response <- Some (Ok response);
+        Some response
+      with _exn ->
+        t.link_response <- Some (Error "");
+        None)
