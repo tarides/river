@@ -13,25 +13,21 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*)
+ *)
 
-type source = {
-  name : string;
-  url  : string
-}
+open Syndic
 
-type feed =
-  | Atom of Syndic.Atom.feed
-  | Rss2 of Syndic.Rss2.channel
-  | Broken of string (* the argument gives the reason *)
+(* Remove all tags *)
+let rec syndic_to_buffer b = function
+  | XML.Node (_, _, subs) -> List.iter (syndic_to_buffer b) subs
+  | XML.Data (_, d) -> Buffer.add_string b d
 
-type contributor = {
-  name  : string;
-  title : string;
-  url   : string;
-  feed  : feed;
-}
+let syndic_to_string x =
+  let b = Buffer.create 1024 in
+  List.iter (syndic_to_buffer b) x;
+  Buffer.contents b
 
-val gather_sources : string -> source list
-
-val contributor_of_source : source -> contributor
+let string_of_text_construct : Atom.text_construct -> string = function
+  (* FIXME: we probably would like to parse the HTML and remove the tags *)
+  | Atom.Text s | Atom.Html (_, s) -> s
+  | Atom.Xhtml (_, x) -> syndic_to_string x

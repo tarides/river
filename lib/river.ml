@@ -13,12 +13,32 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*)
+ *)
 
-include Ri_posts
-include Ri_feeds
+type source = Feed.source = { name : string; url : string }
+type feed = Feed.t
+type post = Post.t
 
-let get_posts ?n ?ofs file_name =
-  let sources = gather_sources file_name in
-  let contributors = List.map contributor_of_source sources in
-  get_posts ?n ?ofs contributors
+let fetch = Feed.fetch
+let name feed = feed.Feed.name
+let url feed = feed.Feed.url
+let posts feeds = Post.get_posts feeds
+let title post = post.Post.title
+let link post = post.Post.link
+let date post = post.Post.date
+let feed post = post.Post.feed
+let author post = post.Post.author
+let email post = post.Post.email
+let content post = Post.string_of_html post.Post.content
+
+let meta_description post =
+  match Post.fetch_link post with
+  | None -> None
+  | Some response -> Meta.description response
+
+let seo_image post =
+  match Post.fetch_link post with
+  | None -> None
+  | Some response -> Meta.preview_image response
+
+let create_atom_entries = Post.mk_entries

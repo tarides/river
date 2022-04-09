@@ -1,9 +1,0 @@
-KC Sivaramakrishnan|http://kcsrk.info/atom-ocaml.xml
-Anil Madhavapeddy|http://anil.recoil.org/feeds/atom-ocaml.xml
-Amir Chaudhry|http://amirchaudhry.com/tags/ocamllabs-atom.xml
-Compiler Hacking|http://ocamllabs.github.io/compiler-hacking/rss.xml
-OCL Monthly News|http://www.cl.cam.ac.uk/projects/ocamllabs/news/atom.xml
-Heidi Howard|http://hh360.user.srcf.net/blog/category/pl/ocaml/feed/
-Thomas Leonard|http://roscidus.com/blog/atom.xml
-Mirage OS|http://openmirage.org/blog/atom.xml
-SRG Syslog|http://www.syslog.cl.cam.ac.uk/tag/ocamllabs/feed/atom

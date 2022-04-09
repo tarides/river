@@ -13,56 +13,61 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*)
+ *)
 
+type source = { name : string; url : string }
+(** The source of a feed. *)
 
-type html = Nethtml.document list
+type feed
+type post
 
-type feed =
-    Atom of Syndic.Atom.feed
-  | Rss2 of Syndic.Rss2.channel
-  | Broken of string
-(** The feed is either an Atom or Rss2. If the feed is Broken [message], then
-    the [message] gives the reason. *)
+val fetch : source -> feed
+(** [fetch source] returns an Atom or RSS feed from a source. *)
 
-type contributor = {
-  name  : string;
-  title : string;
-  url   : string;
-  feed  : feed;
-}
-(** Feed information. *)
+val name : feed -> string
+(** [name feed] is the name of the feed source passed to [fetch]. *)
 
-type post = {
-  title : string;
-  link  : Uri.t option;
-  date  : Syndic.Date.t option;
-  contributor : contributor;
-  author : string;
-  email : string;
-  desc  : html;
-}
-(** Each post has a title, author, email and content (desc). The link, if
-    available, points to the location of the original post. *)
+val url : feed -> string
+(** [url feed] is the url of the feed source passed to [fetch]. *)
 
-val get_posts: ?n:int -> ?ofs:int -> string -> post list
-(** [get_posts n ofs fname] fetches a deduplicated list of posts, sorted based
-    on the date, with the lastest post appearing first. The optional argument [n]
-    fetches the first [n] posts. By default, all the posts are fetched. [ofs]
-    represents the offset into the post list. For example, [get_posts 10 10]
-    fetches the posts 10 to 20.
+val posts : feed list -> post list
+(** [posts feeds] is the list of deduplicated posts of the given feeds. *)
 
-    [fname] is the input file with the list of feeds. The format is:
+val feed : post -> feed
+(** [feed post] is the feed the post originates from. *)
 
-      <feed_name>|<feed_url>
-      <feed_name>|<feed_url>
-      ...
-  *)
+val title : post -> string
+(** [title post] is the title of the post. *)
 
-val prefix_of_html: html -> int -> html
-(** [prefix_of_html html n] truncates the given document to [n] characters.
-    The truncated document is ensured to be a well-formed docuemnt. *)
+val link : post -> Uri.t option
+(** [link post] is the link of the post. *)
 
-val mk_entries: post list -> Syndic.Atom.entry list
-(** [mk_entries posts] creates a list of atom entries, which can then be used to
-    create an atom feed that is an aggregate of the posts. *)
+val date : post -> Syndic.Date.t option
+(** [date post] is the date of the post. *)
+
+val author : post -> string
+(** [author post] is the author of the post. *)
+
+val email : post -> string
+(** [email post] is the email of the post. *)
+
+val content : post -> string
+(** [content post] is the content of the post. *)
+
+val meta_description : post -> string option
+(** [meta_description post] is the meta description of the post on the origin
+    site.
+
+    To get the meta description, we make get the content of [link post] and look
+    for an HTML meta tag with the name "description" or "og:description".*)
+
+val seo_image : post -> string option
+(** [seo_image post] is the image to be used by social networks and links to the
+    post.
+
+    To get the seo image, we make get the content of [link post] and look for an
+    HTML meta tag with the name "og:image" or "twitter:image". *)
+
+val create_atom_entries : post list -> Syndic.Atom.entry list
+(** [create_atom_feed posts] creates a list of atom entries, which can then be
+    used to create an atom feed that is an aggregate of the posts. *)
