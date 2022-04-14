@@ -1,8 +1,8 @@
-(lang dune 2.0)
+(lang dune 3.0)
 
 (name river)
 
-(documentation "https://tmattio.github.io/river/")
+(documentation "https://kayceesrk.github.io/river/")
 
 (source
  (github kayceesrk/river))
@@ -34,4 +34,5 @@
   ptime
   lwt
   ocamlnet
+  lambdasoup
   (odoc :with-doc)))
