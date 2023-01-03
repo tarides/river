@@ -22,7 +22,6 @@
  (depends
   (ocaml
    (>= 4.08.0))
-  dune
   (syndic
    (>= 1.5))
   (cohttp
@@ -33,6 +32,4 @@
    (>= 5.0.0))
   ptime
   lwt
-  ocamlnet
-  lambdasoup
   (odoc :with-doc)))

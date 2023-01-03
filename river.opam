@@ -9,16 +9,14 @@ homepage: "https://github.com/kayceesrk/river"
 doc: "https://kayceesrk.github.io/river/"
 bug-reports: "https://github.com/kayceesrk/river/issues"
 depends: [
-  "ocaml" {>= "4.08.0"}
   "dune" {>= "3.0"}
+  "ocaml" {>= "4.08.0"}
   "syndic" {>= "1.5"}
   "cohttp" {>= "5.0.0"}
   "cohttp-lwt" {>= "5.0.0"}
   "cohttp-lwt-unix" {>= "5.0.0"}
   "ptime"
   "lwt"
-  "ocamlnet"
-  "lambdasoup"
   "odoc" {with-doc}
 ]
 build: [

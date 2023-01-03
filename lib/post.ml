@@ -22,121 +22,17 @@ type t = {
   feed : Feed.t;
   author : string;
   email : string;
-  content : Nethtml.document list;
+  content : string;
   mutable link_response : (string, string) result option;
 }
 
-let rec len_prefix_of_html html len =
-  if len <= 0 then (0, [])
-  else
-    match html with
-    | [] -> (len, [])
-    | el :: tl ->
-        let len, prefix_el = len_prefix_of_el el len in
-        let len, prefix_tl = len_prefix_of_html tl len in
-        (len, prefix_el :: prefix_tl)
-
-and len_prefix_of_el el len =
-  match el with
-  | Nethtml.Data d ->
-      let len' = len - String.length d in
-      (len', if len' >= 0 then el else Data (String.sub d 0 len ^ "…"))
-  | Nethtml.Element (tag, args, content) ->
-      (* Remove "id" and "name" to avoid duplicate anchors with the whole
-         post. *)
-      let args = List.filter (fun (n, _) -> n <> "id" && n <> "name") args in
-      let len, prefix_content = len_prefix_of_html content len in
-      (len, Element (tag, args, prefix_content))
-
-let prefix_of_html html len = snd (len_prefix_of_html html len)
-
-let rec filter_map l f =
-  match l with
-  | [] -> []
-  | a :: tl -> (
-      match f a with None -> filter_map tl f | Some a -> a :: filter_map tl f)
-
-let encode_html =
-  Netencoding.Html.encode ~prefer_name:false ~in_enc:`Enc_utf8 ()
-
-let decode_document html = Nethtml.decode ~enc:`Enc_utf8 html
-let encode_document html = Nethtml.encode ~enc:`Enc_utf8 html
-
-let rec resolve ?xmlbase html = List.map (resolve_links_el ~xmlbase) html
-
-and resolve_links_el ~xmlbase = function
-  | Nethtml.Element ("a", attrs, sub) ->
-      let attrs =
-        match List.partition (fun (t, _) -> t = "href") attrs with
-        | [], _ -> attrs
-        | (_, h) :: _, attrs ->
-            let src =
-              Uri.to_string (Syndic.XML.resolve ~xmlbase (Uri.of_string h))
-            in
-            ("href", src) :: attrs
-      in
-      Nethtml.Element ("a", attrs, resolve ?xmlbase sub)
-  | Nethtml.Element ("img", attrs, sub) ->
-      let attrs =
-        match List.partition (fun (t, _) -> t = "src") attrs with
-        | [], _ -> attrs
-        | (_, src) :: _, attrs ->
-            let src =
-              Uri.to_string (Syndic.XML.resolve ~xmlbase (Uri.of_string src))
-            in
-            ("src", src) :: attrs
-      in
-      Nethtml.Element ("img", attrs, sub)
-  | Nethtml.Element (e, attrs, sub) ->
-      Nethtml.Element (e, attrs, resolve ?xmlbase sub)
-  | Data _ as d -> d
-
-(* Things that posts should not contain *)
-let undesired_tags = [ "style"; "script" ]
-let undesired_attr = [ "id" ]
-
-let remove_undesired_attr =
-  List.filter (fun (a, _) -> not (List.mem a undesired_attr))
-
-let rec remove_undesired_tags html = filter_map html remove_undesired_tags_el
-
-and remove_undesired_tags_el = function
-  | Nethtml.Element (t, a, sub) ->
-      if List.mem t undesired_tags then None
-      else
-        Some
-          (Nethtml.Element
-             (t, remove_undesired_attr a, remove_undesired_tags sub))
-  | Data _ as d -> Some d
-
-let relaxed_html40_dtd =
-  (* Allow <font> inside <pre> because blogspot uses it! :-( *)
-  let constr =
-    `Sub_exclusions
-      ( [ "img"; "object"; "applet"; "big"; "small"; "sub"; "sup"; "basefont" ],
-        `Inline )
-  in
-  let dtd = Nethtml.relaxed_html40_dtd in
-  ("pre", (`Block, constr)) :: List.remove_assoc "pre" dtd
-
-let html_of_text ?xmlbase s =
-  try
-    Nethtml.parse (new Netchannels.input_string s) ~dtd:relaxed_html40_dtd
-    |> decode_document |> resolve ?xmlbase |> remove_undesired_tags
-  with _ -> [ Nethtml.Data (encode_html s) ]
-
 (* Do not trust sites using XML for HTML content. Convert to string and parse
    back. (Does not always fix bad HTML unfortunately.) *)
-let html_of_syndic =
+let html_of_syndic h =
   let ns_prefix _ = Some "" in
-  fun ?xmlbase h ->
-    html_of_text ?xmlbase
-      (String.concat "" (List.map (Syndic.XML.to_string ~ns_prefix) h))
+  (String.concat "" (List.map (Syndic.XML.to_string ~ns_prefix) h))
 
 let string_of_option = function None -> "" | Some s -> s
-
-(* Email on the forge contain the name in parenthesis *)
-let forge_name_re = Str.regexp ".*(\\([^()]*\\))"
 
 let post_compare p1 p2 =
   (* Most recent posts first. Posts with no date are always last *)
@@ -170,15 +66,15 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
   in
   let content =
     match e.content with
-    | Some (Text s) -> html_of_text s
-    | Some (Html (xmlbase, s)) -> html_of_text ?xmlbase s
-    | Some (Xhtml (xmlbase, h)) -> html_of_syndic ?xmlbase h
+    | Some (Text s) ->  s
+    | Some (Html (_xmlbase, s)) ->   s
+    | Some (Xhtml (_xmlbase, h)) -> html_of_syndic  h
     | Some (Mime _) | Some (Src _) | None -> (
         match e.summary with
-        | Some (Text s) -> html_of_text s
-        | Some (Html (xmlbase, s)) -> html_of_text ?xmlbase s
-        | Some (Xhtml (xmlbase, h)) -> html_of_syndic ?xmlbase h
-        | None -> [])
+        | Some (Text s) ->  s
+        | Some (Html (_xmlbase, s)) ->   s
+        | Some (Xhtml (_xmlbase, h)) -> html_of_syndic  h
+        | None -> "")
   in
   let author, _ = e.authors in
   {
@@ -195,19 +91,19 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
 let post_of_rss2 ~(feed : Feed.t) it =
   let title, content =
     match it.Syndic.Rss2.story with
-    | All (t, xmlbase, d) -> (
+    | All (t, _xmlbase, d) -> (
         ( t,
           match it.content with
-          | _, "" -> html_of_text ?xmlbase d
-          | xmlbase, c -> html_of_text ?xmlbase c ))
+          | _, "" -> d
+          | _xmlbase, c -> c ))
     | Title t ->
-        let xmlbase, c = it.content in
-        (t, html_of_text ?xmlbase c)
-    | Description (xmlbase, d) -> (
+        let _xmlbase, c = it.content in
+        (t, c)
+    | Description (_xmlbase, d) -> (
         ( "",
           match it.content with
-          | _, "" -> html_of_text ?xmlbase d
-          | xmlbase, c -> html_of_text ?xmlbase c ))
+          | _, "" -> d
+          | _xmlbase, c -> c ))
   in
   let link =
     match (it.guid, it.link) with
@@ -235,14 +131,8 @@ let posts_of_feed c =
   | Feed.Atom f -> List.map (post_of_atom ~feed:c) f.Syndic.Atom.entries
   | Feed.Rss2 ch -> List.map (post_of_rss2 ~feed:c) ch.Syndic.Rss2.items
 
-let string_of_html html =
-  let buffer = Buffer.create 1024 in
-  let channel = new Netchannels.output_buffer buffer in
-  let () = Nethtml.write channel @@ encode_document html in
-  Buffer.contents buffer
-
 let mk_entry post =
-  let content = Syndic.Atom.Html (None, string_of_html post.content) in
+  let content = Syndic.Atom.Html (None, post.content) in
   let contributors =
     [ Syndic.Atom.author ~uri:(Uri.of_string post.feed.url) post.feed.name ]
   in

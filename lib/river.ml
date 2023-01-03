@@ -29,7 +29,7 @@ let date post = post.Post.date
 let feed post = post.Post.feed
 let author post = post.Post.author
 let email post = post.Post.email
-let content post = Post.string_of_html post.Post.content
+let content post = post.Post.content
 
 let meta_description post =
   match Post.fetch_link post with
