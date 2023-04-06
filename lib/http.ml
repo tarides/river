@@ -54,7 +54,7 @@ let rec get_uri uri = function
         | _ -> raise @@ Status_unhandled (string_of_status resp.status)
       in
       let timeout =
-        Lwt_unix.sleep (float_of_int 3) >>= fun () -> Lwt.fail Timeout
+        Lwt_unix.sleep (float_of_int 20) >>= fun () -> Lwt.fail Timeout
       in
       Lwt.pick [ main; timeout ]
 
