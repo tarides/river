@@ -1,3 +1,7 @@
+# 0.3 - 2023-11-21
+
+- Fall back to entry id if entry links doesn't exist (#11, @sabine)
+
 # 0.2 - 2022-04-14
 
 - Build with dune.
