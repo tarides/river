@@ -163,7 +163,13 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
         (List.find (fun l -> l.Syndic.Atom.rel = Syndic.Atom.Alternate) e.links)
           .href
     with Not_found -> (
-      match e.links with l :: _ -> Some l.href | [] -> None)
+      match e.links with
+      | l :: _ -> Some l.href
+      | [] -> (
+          match Uri.scheme e.id with
+          | Some "http" -> Some e.id
+          | Some "https" -> Some e.id
+          | _ -> None))
   in
   let date =
     match e.published with Some _ -> e.published | None -> Some e.updated
