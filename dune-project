@@ -25,12 +25,8 @@
   dune
   (syndic
    (>= 1.5))
-  (cohttp
-   (>= 5.0.0))
-  (cohttp-lwt
-   (>= 5.0.0))
-  (cohttp-lwt-unix
-   (>= 5.0.0))
+  (hyper
+   (= 1.0.0~alpha1))
   ptime
   lwt
   ocamlnet
