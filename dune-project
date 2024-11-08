@@ -2,10 +2,10 @@
 
 (name river)
 
-(documentation "https://kayceesrk.github.io/river/")
+(documentation "https://tarides.github.io/river/")
 
 (source
- (github kayceesrk/river))
+ (github tarides/river))
 
 (license MIT)
 

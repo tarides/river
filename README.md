@@ -1,6 +1,6 @@
 # River
 
-[![Actions Status](https://github.com/kayceesrk/river/workflows/CI/badge.svg)](https://github.com/kayceesrk/river/actions)
+[![Actions Status](https://github.com/tarides/river/workflows/CI/badge.svg)](https://github.com/tarides/river/actions)
 
 RSS2 and Atom feed aggregator for OCaml
 
