@@ -17,7 +17,6 @@ depends: [
   "cohttp-lwt-unix" {>= "5.0.0"}
   "ptime"
   "lwt"
-  "ocamlnet"
   "lambdasoup"
   "odoc" {with-doc}
 ]

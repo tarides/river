@@ -11,7 +11,7 @@ RSS2 and Atom feed aggregator for OCaml
 - Supports pagination and generating well-formed html prefix snippets.
 - Support for generating aggregate feeds.
 - Sorts the posts from most recent to oldest.
-- Depends on ocamlnet for html parsing.
+- Depends on Lambda Soup for html parsing.
 
 ## Installation
 
