@@ -1,3 +1,7 @@
+# 0.4 - 2024-11-08
+
+- Replace ocamlnet HTML parser with Lambda Soup (#15, @aantron)
+
 # 0.3 - 2023-11-21
 
 - Fall back to entry id if entry links doesn't exist (#11, @sabine)
