@@ -19,7 +19,7 @@ type source = Feed.source = { name : string; url : string }
 type feed = Feed.t
 type post = Post.t
 
-let fetch = Feed.fetch
+let fetch ?timeout ?user_agent source = Feed.fetch ?timeout ?user_agent source
 let name feed = feed.Feed.name
 let url feed = feed.Feed.url
 let posts feeds = Post.get_posts feeds
@@ -31,13 +31,13 @@ let author post = post.Post.author
 let email post = post.Post.email
 let content post = Soup.to_string post.Post.content
 
-let meta_description post =
-  match Post.fetch_link post with
+let meta_description ?timeout ?user_agent post =
+  match Post.fetch_link ?timeout ?user_agent post with
   | None -> None
   | Some response -> Meta.description response
 
-let seo_image post =
-  match Post.fetch_link post with
+let seo_image ?timeout ?user_agent post =
+  match Post.fetch_link ?timeout ?user_agent post with
   | None -> None
   | Some response -> Meta.preview_image response
 

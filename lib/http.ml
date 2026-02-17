@@ -34,34 +34,42 @@ let get_location_exn headers =
   | Some x -> x
   | None -> raise @@ Status_unhandled "Location HTTP header not found"
 
-let rec get_uri uri = function
+let rec get_uri ~headers ~timeout uri = function
   | 0 -> raise (Status_unhandled "Too many redirects")
   | n ->
       let main =
-        Cohttp_lwt_unix.Client.get uri >>= fun (resp, body) ->
+        Cohttp_lwt_unix.Client.get ~headers uri >>= fun (resp, body) ->
         match resp.status with
         | `OK -> Cohttp_lwt.Body.to_string body
         | `Found | `See_other | `Moved_permanently | `Temporary_redirect
         | `Permanent_redirect -> (
             let l = Uri.of_string @@ get_location_exn resp.headers in
             match Uri.host l with
-            | Some _ -> get_uri l (n - 1)
+            | Some _ -> get_uri ~headers ~timeout l (n - 1)
             | None ->
                 let host = Uri.host uri in
                 let scheme = Uri.scheme uri in
                 let new_uri = Uri.with_scheme (Uri.with_host l host) scheme in
-                get_uri new_uri (n - 1))
+                get_uri ~headers ~timeout new_uri (n - 1))
         | _ -> raise @@ Status_unhandled (string_of_status resp.status)
       in
       let timeout =
-        Lwt_unix.sleep (float_of_int 3) >>= fun () -> Lwt.fail Timeout
+        Lwt_unix.sleep timeout >>= fun () -> Lwt.fail Timeout
       in
       Lwt.pick [ main; timeout ]
 
-let get url =
+let get ?(timeout = 3.) ?user_agent url =
   eprintf "Downloading %s ... %!" url;
+  let headers =
+    match user_agent with
+    | None -> Header.init ()
+    | Some ua -> Header.init_with "User-Agent" ua
+  in
   try
-    let data = Lwt_main.run @@ get_uri (Uri.of_string url) max_num_redirects in
+    let data =
+      Lwt_main.run
+      @@ get_uri ~headers ~timeout (Uri.of_string url) max_num_redirects
+    in
     eprintf "done %!\n";
     data
   with

@@ -28,9 +28,9 @@ let classify_feed ~xmlbase (xml : string) =
     try Rss2 (Syndic.Rss2.parse ~xmlbase (Xmlm.make_input (`String (0, xml))))
     with Syndic.Rss2.Error.Error _ -> failwith "Neither Atom nor RSS2 feed")
 
-let fetch (source : source) =
+let fetch ?timeout ?user_agent (source : source) =
   let xmlbase = Uri.of_string @@ source.url in
-  let response = Http.get source.url in
+  let response = Http.get ?timeout ?user_agent source.url in
   let content = classify_feed ~xmlbase response in
   let title =
     match content with

@@ -200,14 +200,14 @@ let get_posts ?n ?(ofs = 0) planet_feeds =
   match n with None -> posts | Some n -> take n posts
 
 (* Fetch the link response and cache it. *)
-let fetch_link t =
+let fetch_link ?timeout ?user_agent t =
   match (t.link, t.link_response) with
   | None, _ -> None
   | Some _, Some (Ok x) -> Some x
   | Some _, Some (Error _) -> None
   | Some link, None -> (
       try
-        let response = Http.get (Uri.to_string link) in
+        let response = Http.get ?timeout ?user_agent (Uri.to_string link) in
         t.link_response <- Some (Ok response);
         Some response
       with _exn ->
