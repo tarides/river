@@ -18,8 +18,13 @@
 exception Status_unhandled of string
 exception Timeout
 
-val get : string -> string
-(** [get uri] returns the body of the response of the HTTP GET request on [uri].
+val get : ?timeout:float -> ?user_agent:string -> string -> string
+(** [get ?timeout ?user_agent uri] returns the body of the response of the HTTP
+    GET request on [uri].
+
+    @param timeout Connection timeout in seconds. Default: [3.].
+    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
+      default.
 
     If the answer of is a redirection, it will follow the redirections up to 5
     redirects.

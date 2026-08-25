@@ -21,8 +21,13 @@ type source = { name : string; url : string }
 type feed
 type post
 
-val fetch : source -> feed
-(** [fetch source] returns an Atom or RSS feed from a source. *)
+val fetch : ?timeout:float -> ?user_agent:string -> source -> feed
+(** [fetch ?timeout ?user_agent source] returns an Atom or RSS feed from a
+    source.
+
+    @param timeout Connection timeout in seconds. Default: [3.].
+    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
+      default. *)
 
 val name : feed -> string
 (** [name feed] is the name of the feed source passed to [fetch]. *)
@@ -54,16 +59,26 @@ val email : post -> string
 val content : post -> string
 (** [content post] is the content of the post. *)
 
-val meta_description : post -> string option
-(** [meta_description post] is the meta description of the post on the origin
-    site.
+val meta_description :
+  ?timeout:float -> ?user_agent:string -> post -> string option
+(** [meta_description ?timeout ?user_agent post] is the meta description of the
+    post on the origin site.
+
+    @param timeout Connection timeout in seconds. Default: [3.].
+    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
+      default.
 
     To get the meta description, we make get the content of [link post] and look
     for an HTML meta tag with the name "description" or "og:description".*)
 
-val seo_image : post -> string option
-(** [seo_image post] is the image to be used by social networks and links to the
-    post.
+val seo_image :
+  ?timeout:float -> ?user_agent:string -> post -> string option
+(** [seo_image ?timeout ?user_agent post] is the image to be used by social
+    networks and links to the post.
+
+    @param timeout Connection timeout in seconds. Default: [3.].
+    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
+      default.
 
     To get the seo image, we make get the content of [link post] and look for an
     HTML meta tag with the name "og:image" or "twitter:image". *)
