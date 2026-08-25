@@ -5,7 +5,7 @@
 (documentation "https://kayceesrk.github.io/river/")
 
 (source
- (github kayceesrk/river))
+ (github tarides/river))
 
 (license MIT)
 
@@ -33,6 +33,5 @@
    (>= 5.0.0))
   ptime
   lwt
-  ocamlnet
   lambdasoup
   (odoc :with-doc)))

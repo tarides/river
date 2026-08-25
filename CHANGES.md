@@ -1,3 +1,8 @@
+# 0.5 - 2026-08-25
+
+- Expose timeout and user-agent in the public API (#16)
+- Remove unused ocamlnet dependency
+
 # 0.4 - 2024-11-08
 
 - Replace ocamlnet HTML parser with Lambda Soup (#15, @aantron)
