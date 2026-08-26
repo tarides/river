@@ -21,13 +21,31 @@ type source = { name : string; url : string }
 type feed
 type post
 
-val fetch : ?timeout:float -> ?user_agent:string -> source -> feed
-(** [fetch ?timeout ?user_agent source] returns an Atom or RSS feed from a
-    source.
+val fetch :
+  ?timeout:float -> ?user_agent:string -> ?repair:bool -> source -> feed
+(** [fetch ?timeout ?user_agent ?repair source] returns an Atom or RSS feed
+    from a source.
 
     @param timeout Connection timeout in seconds. Default: [3.].
     @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default. *)
+      default.
+    @param repair
+      When [true], if the document is not well-formed XML, retry after
+      self-closing HTML void elements (see {!sanitize_void_elements}). Feeds
+      that already parse are never modified. Default: [false]. *)
+
+val of_string : ?repair:bool -> source -> string -> feed
+(** [of_string ?repair source xml] parses the in-memory feed document [xml] as
+    if it had been fetched from [source.url], performing no HTTP request. See
+    {!fetch} for [repair]. *)
+
+val sanitize_void_elements : string -> string
+(** [sanitize_void_elements xml] rewrites HTML void elements ([<img>], [<br>],
+    …) into self-closing form: both unclosed ([<img ...>]) and
+    redundantly-closed ([<img ...></img>]) occurrences become [<img ... />].
+    Already self-closed elements and escaped ([type="html"]) content are left
+    untouched. This is the transform applied by {!fetch} and {!of_string} when
+    [~repair:true]; it is exposed for testing and reuse. *)
 
 val name : feed -> string
 (** [name feed] is the name of the feed source passed to [fetch]. *)

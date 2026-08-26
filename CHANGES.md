@@ -1,3 +1,11 @@
+# unreleased
+
+- Add an opt-in `?repair` flag to `River.fetch` (and a new `River.of_string`)
+  that recovers feeds which are valid Atom/RSS apart from unclosed HTML void
+  elements (e.g. `<img>`) in `type="xhtml"` content, by self-closing them
+  before parsing. Off by default, so well-formed feeds are never modified.
+  Also exposes `River.sanitize_void_elements`.
+
 # 0.5 - 2026-08-25
 
 - Expose timeout and user-agent in the public API (#16)
