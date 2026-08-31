@@ -1,3 +1,9 @@
+# Unreleased
+
+- Use the feed's own `<summary>` (Atom) / `<description>` (RSS2) when
+  available: add a `summary` accessor and make `meta_description` prefer it
+  over scraping the origin HTML page (#12)
+
 # 0.5 - 2026-08-25
 
 - Expose timeout and user-agent in the public API (#16)

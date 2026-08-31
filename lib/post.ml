@@ -23,8 +23,16 @@ type t = {
   author : string;
   email : string;
   content : Soup.soup Soup.node;
+  summary : string option;
   mutable link_response : (string, string) result option;
 }
+
+(* Extract plain text from a (possibly HTML) string, returning [None] when the
+   result is empty. Used to turn a feed's <summary>/<description> into a clean
+   text description. *)
+let plain_text_of_html s =
+  let text = Soup.parse s |> Soup.texts |> String.concat "" |> String.trim in
+  if text = "" then None else Some text
 
 let resolve_links_attr ~xmlbase attr el =
   Soup.R.attribute attr el
@@ -109,6 +117,11 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
         | None -> Soup.parse "")
   in
   let author, _ = e.authors in
+  let summary =
+    match e.summary with
+    | Some s -> plain_text_of_html (Util.string_of_text_construct s)
+    | None -> None
+  in
   {
     title = Util.string_of_text_construct e.title;
     link;
@@ -117,6 +130,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
     author = author.name;
     email = "";
     content;
+    summary;
     link_response = None;
   }
 
@@ -147,6 +161,11 @@ let post_of_rss2 ~(feed : Feed.t) it =
         Some u.data
     | None, None -> None
   in
+  let summary =
+    match it.Syndic.Rss2.story with
+    | All (_, _, d) | Description (_, d) -> plain_text_of_html d
+    | Title _ -> None
+  in
   {
     title;
     link;
@@ -154,6 +173,7 @@ let post_of_rss2 ~(feed : Feed.t) it =
     author = feed.name;
     email = string_of_option it.author;
     content;
+    summary;
     date = it.pubDate;
     link_response = None;
   }

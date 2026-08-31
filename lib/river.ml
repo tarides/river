@@ -30,11 +30,15 @@ let feed post = post.Post.feed
 let author post = post.Post.author
 let email post = post.Post.email
 let content post = Soup.to_string post.Post.content
+let summary post = post.Post.summary
 
 let meta_description ?timeout ?user_agent post =
-  match Post.fetch_link ?timeout ?user_agent post with
-  | None -> None
-  | Some response -> Meta.description response
+  match post.Post.summary with
+  | Some _ as summary -> summary
+  | None -> (
+      match Post.fetch_link ?timeout ?user_agent post with
+      | None -> None
+      | Some response -> Meta.description response)
 
 let seo_image ?timeout ?user_agent post =
   match Post.fetch_link ?timeout ?user_agent post with
