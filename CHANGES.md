@@ -1,3 +1,9 @@
+# Unreleased
+
+- Respect the feed's own entry identity (Atom `<id>`, RSS2 guid) when
+  generating Atom entries, resolve relative entry links to absolute URLs, and
+  deduplicate merged posts (#13)
+
 # 0.5 - 2026-08-25
 
 - Expose timeout and user-agent in the public API (#16)
