@@ -19,7 +19,11 @@ type source = Feed.source = { name : string; url : string }
 type feed = Feed.t
 type post = Post.t
 
-let fetch ?timeout ?user_agent source = Feed.fetch ?timeout ?user_agent source
+let fetch ?timeout ?user_agent ?repair source =
+  Feed.fetch ?timeout ?user_agent ?repair source
+
+let of_string ?repair source xml = Feed.of_string ?repair source xml
+let sanitize_void_elements = Feed.sanitize_void_elements
 let name feed = feed.Feed.name
 let url feed = feed.Feed.url
 let posts feeds = Post.get_posts feeds
