@@ -24,6 +24,7 @@ let fetch ?timeout ?user_agent ?repair source =
 
 let of_string ?repair source xml = Feed.of_string ?repair source xml
 let sanitize_void_elements = Feed.sanitize_void_elements
+let repair_missing_updated = Feed.repair_missing_updated
 let name feed = feed.Feed.name
 let url feed = feed.Feed.url
 let posts feeds = Post.get_posts feeds

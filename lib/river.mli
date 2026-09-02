@@ -30,9 +30,11 @@ val fetch :
     @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
       default.
     @param repair
-      When [true], if the document is not well-formed XML, retry after
-      self-closing HTML void elements (see {!sanitize_void_elements}). Feeds
-      that already parse are never modified. Default: [false]. *)
+      When [true], if the document fails to parse as-is, retry after two
+      conservative fix-ups: self-closing HTML void elements (see
+      {!sanitize_void_elements}) and defaulting any entry missing a mandatory
+      [<updated>] (see {!repair_missing_updated}). Feeds that already parse are
+      never modified. Default: [false]. *)
 
 val of_string : ?repair:bool -> source -> string -> feed
 (** [of_string ?repair source xml] parses the in-memory feed document [xml] as
@@ -45,6 +47,15 @@ val sanitize_void_elements : string -> string
     redundantly-closed ([<img ...></img>]) occurrences become [<img ... />].
     Already self-closed elements and escaped ([type="html"]) content are left
     untouched. This is the transform applied by {!fetch} and {!of_string} when
+    [~repair:true]; it is exposed for testing and reuse. *)
+
+val repair_missing_updated : string -> string
+(** [repair_missing_updated xml] fills in a mandatory entry-level [<updated>]
+    element wherever an Atom [<entry>] lacks one, defaulting it to (1) the
+    entry's own [<published>] if present, else (2) the feed-level [<updated>].
+    Entries that already have an [<updated>] and documents with no [<entry>]
+    (e.g. RSS2) are left unchanged, so it is idempotent and never alters a valid
+    feed. This is the second transform applied by {!fetch} and {!of_string} when
     [~repair:true]; it is exposed for testing and reuse. *)
 
 val name : feed -> string
