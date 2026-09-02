@@ -5,6 +5,10 @@
   elements (e.g. `<img>`) in `type="xhtml"` content, by self-closing them
   before parsing. Off by default, so well-formed feeds are never modified.
   Also exposes `River.sanitize_void_elements`.
+- Extend `?repair` to also recover well-formed Atom feeds that Syndic rejects
+  because an `<entry>` is missing the mandatory `<updated>` element: it is
+  defaulted to the entry's `<published>`, else the feed-level `<updated>`
+  (#20). Also exposes `River.repair_missing_updated`.
 
 # 0.5 - 2026-08-25
 

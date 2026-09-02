@@ -65,6 +65,110 @@ let sanitize_void_elements (xml : string) : string =
         Printf.sprintf "<%s%s />" (Str.matched_group 1 s) (Str.matched_group 2 s))
     xml
 
+(* Substring search: index of the first occurrence of [needle] in [hay] at or
+   after [start], if any. *)
+let find_from hay needle start =
+  let hl = String.length hay and nl = String.length needle in
+  let rec loop i =
+    if i + nl > hl then None
+    else if String.sub hay i nl = needle then Some i
+    else loop (i + 1)
+  in
+  loop start
+
+let entry_open_re = Str.regexp_case_fold "<entry\\([ \t\r\n][^>]*\\)?>"
+let updated_tag_re = Str.regexp_case_fold "<updated[ \t\r\n/>]"
+
+let published_elt_re =
+  Str.regexp_case_fold
+    "<published\\([ \t\r\n][^>]*\\)?>\\([^<]*\\)</published[ \t\r\n]*>"
+
+let updated_elt_re =
+  Str.regexp_case_fold
+    "<updated\\([ \t\r\n][^>]*\\)?>\\([^<]*\\)</updated[ \t\r\n]*>"
+
+let has_updated block =
+  match Str.search_forward updated_tag_re block 0 with
+  | _ -> true
+  | exception Not_found -> false
+
+(* If [block] (the children of an <entry>) contains a <published> but no
+   <updated>, return [block] with an <updated> holding the published date
+   inserted right after </published>. *)
+let fill_from_published block =
+  match Str.search_forward published_elt_re block 0 with
+  | exception Not_found -> None
+  | _ ->
+      let v = String.trim (Str.matched_group 2 block) in
+      let after = Str.match_end () in
+      Some
+        (String.sub block 0 after
+        ^ "<updated>" ^ v ^ "</updated>"
+        ^ String.sub block after (String.length block - after))
+
+(* Semantic repair for well-formed Atom feeds that Syndic rejects because an
+   <entry> has no <updated>, which RFC 4287 makes mandatory. Many generators
+   emit <published> without <updated> for never-edited posts, and one such
+   entry makes Syndic drop the whole feed. [repair_missing_updated] defaults a
+   missing entry <updated> to, in order of preference: the entry's own
+   <published>, else the feed-level <updated>. This is a semantically safe
+   reconstruction — RFC 4287 defines [updated] as the last significant change,
+   which for an unedited entry is its publication — and exactly the fallback
+   mainstream generators (jekyll-feed, Zola, Hugo) use.
+
+   Like [sanitize_void_elements] it is conservative and meant only for the
+   [~repair] retry: it edits the raw text of the default (unprefixed) Atom
+   namespace, leaves entries that already have an <updated> untouched (so it is
+   idempotent and never changes a valid feed), and is a no-op on documents with
+   no <entry> (e.g. RSS2). *)
+let repair_missing_updated (xml : string) : string =
+  match Str.search_forward entry_open_re xml 0 with
+  | exception Not_found -> xml
+  | first_entry ->
+      (* Feed-level <updated>, used as the fallback when an entry has neither
+         <updated> nor <published>. Only count it if it precedes the first
+         entry, so an entry's own <updated> is never mistaken for it. *)
+      let feed_updated =
+        match Str.search_forward updated_elt_re xml 0 with
+        | exception Not_found -> None
+        | mstart when mstart < first_entry -> Some (Str.matched_group 2 xml)
+        | _ -> None
+      in
+      let buf = Buffer.create (String.length xml + 64) in
+      let pos = ref 0 in
+      let continue = ref true in
+      while !continue do
+        match Str.search_forward entry_open_re xml !pos with
+        | exception Not_found ->
+            Buffer.add_substring buf xml !pos (String.length xml - !pos);
+            continue := false
+        | estart -> (
+            let open_end = Str.match_end () in
+            match find_from xml "</entry>" open_end with
+            | None ->
+                Buffer.add_substring buf xml !pos (String.length xml - !pos);
+                continue := false
+            | Some cstart ->
+                (* Text before this entry, then the entry's open tag, verbatim. *)
+                Buffer.add_substring buf xml !pos (estart - !pos);
+                Buffer.add_substring buf xml estart (open_end - estart);
+                let inner = String.sub xml open_end (cstart - open_end) in
+                let repaired =
+                  if has_updated inner then inner
+                  else
+                    match fill_from_published inner with
+                    | Some inner' -> inner'
+                    | None -> (
+                        match feed_updated with
+                        | Some v -> "<updated>" ^ v ^ "</updated>" ^ inner
+                        | None -> inner)
+                in
+                Buffer.add_string buf repaired;
+                Buffer.add_string buf "</entry>";
+                pos := cstart + String.length "</entry>")
+      done;
+      Buffer.contents buf
+
 let classify_feed ~xmlbase ?(repair = false) (xml : string) =
   let parse xml =
     try Atom (Syndic.Atom.parse ~xmlbase (Xmlm.make_input (`String (0, xml))))
@@ -78,7 +182,10 @@ let classify_feed ~xmlbase ?(repair = false) (xml : string) =
        unchanged. *)
     if not repair then failwith "Neither Atom nor RSS2 feed"
     else (
-      try parse (sanitize_void_elements xml)
+      (* Void-element repair first (makes the document well-formed XML), then
+         fill any entry missing a mandatory <updated>. Each pass is a no-op on
+         feeds that do not need it, so both classes recover in one retry. *)
+      try parse (repair_missing_updated (sanitize_void_elements xml))
       with Syndic.Atom.Error.Error _ | Syndic.Rss2.Error.Error _ ->
         failwith "Neither Atom nor RSS2 feed")
 
