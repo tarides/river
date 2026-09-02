@@ -1,4 +1,4 @@
-# unreleased
+# 0.6 - 2026-09-02
 
 - Add an opt-in `?repair` flag to `River.fetch` (and a new `River.of_string`)
   that recovers feeds which are valid Atom/RSS apart from unclosed HTML void
