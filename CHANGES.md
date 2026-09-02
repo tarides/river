@@ -12,6 +12,9 @@
 - Respect the feed's own entry identity (Atom `<id>`, RSS2 guid) when
   generating Atom entries, resolve relative entry links to absolute URLs, and
   deduplicate merged posts (#13)
+- Use the feed's own `<summary>` (Atom) / `<description>` (RSS2) when
+  available: add a `summary` accessor and make `meta_description` prefer it
+  over scraping the origin HTML page (#12)
 
 # 0.5 - 2026-08-25
 

@@ -88,17 +88,23 @@ val email : post -> string
 val content : post -> string
 (** [content post] is the content of the post. *)
 
+val summary : post -> string option
+(** [summary post] is the short description provided by the feed itself: the
+    Atom [<summary>] or the RSS2 [<description>], as plain text. [None] when the
+    feed provides no such element. *)
+
 val meta_description :
   ?timeout:float -> ?user_agent:string -> post -> string option
-(** [meta_description ?timeout ?user_agent post] is the meta description of the
-    post on the origin site.
+(** [meta_description ?timeout ?user_agent post] is a short description of the
+    post.
+
+    When the feed provides one, [summary post] is returned directly. Otherwise
+    we fetch the content of [link post] and look for an HTML meta tag with the
+    name "description" or "og:description".
 
     @param timeout Connection timeout in seconds. Default: [3.].
     @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default.
-
-    To get the meta description, we make get the content of [link post] and look
-    for an HTML meta tag with the name "description" or "og:description".*)
+      default. *)
 
 val seo_image :
   ?timeout:float -> ?user_agent:string -> post -> string option

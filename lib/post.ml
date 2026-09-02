@@ -24,6 +24,7 @@ type t = {
   author : string;
   email : string;
   content : Soup.soup Soup.node;
+  summary : string option;
   mutable link_response : (string, string) result option;
 }
 
@@ -31,6 +32,13 @@ type t = {
    that identities and links are absolute and stable. *)
 let resolve_uri ~(feed : Feed.t) uri =
   Syndic.XML.resolve ~xmlbase:(Some (Uri.of_string feed.url)) uri
+
+(* Extract plain text from a (possibly HTML) string, returning [None] when the
+   result is empty. Used to turn a feed's <summary>/<description> into a clean
+   text description. *)
+let plain_text_of_html s =
+  let text = Soup.parse s |> Soup.texts |> String.concat "" |> String.trim in
+  if text = "" then None else Some text
 
 let resolve_links_attr ~xmlbase attr el =
   Soup.R.attribute attr el
@@ -116,6 +124,11 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
         | None -> Soup.parse "")
   in
   let author, _ = e.authors in
+  let summary =
+    match e.summary with
+    | Some s -> plain_text_of_html (Util.string_of_text_construct s)
+    | None -> None
+  in
   {
     title = Util.string_of_text_construct e.title;
     link;
@@ -125,6 +138,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
     author = author.name;
     email = "";
     content;
+    summary;
     link_response = None;
   }
 
@@ -158,6 +172,11 @@ let post_of_rss2 ~(feed : Feed.t) it =
   let link = Option.map (resolve_uri ~feed) link in
   (* The guid is a stable, globally-unique identity when present. *)
   let id = Option.map (fun (g : Syndic.Rss2.guid) -> g.data) it.guid in
+  let summary =
+    match it.Syndic.Rss2.story with
+    | All (_, _, d) | Description (_, d) -> plain_text_of_html d
+    | Title _ -> None
+  in
   {
     title;
     link;
@@ -166,6 +185,7 @@ let post_of_rss2 ~(feed : Feed.t) it =
     author = feed.name;
     email = string_of_option it.author;
     content;
+    summary;
     date = it.pubDate;
     link_response = None;
   }
