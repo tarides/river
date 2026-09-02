@@ -18,6 +18,7 @@
 type t = {
   title : string;
   link : Uri.t option;
+  id : Uri.t option;
   date : Syndic.Date.t option;
   feed : Feed.t;
   author : string;
@@ -25,6 +26,11 @@ type t = {
   content : Soup.soup Soup.node;
   mutable link_response : (string, string) result option;
 }
+
+(* Resolve a possibly-relative entry URI (link or id) against the feed URL, so
+   that identities and links are absolute and stable. *)
+let resolve_uri ~(feed : Feed.t) uri =
+  Syndic.XML.resolve ~xmlbase:(Some (Uri.of_string feed.url)) uri
 
 let resolve_links_attr ~xmlbase attr el =
   Soup.R.attribute attr el
@@ -93,6 +99,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
           | Some "https" -> Some e.id
           | _ -> None))
   in
+  let link = Option.map (resolve_uri ~feed) link in
   let date =
     match e.published with Some _ -> e.published | None -> Some e.updated
   in
@@ -112,6 +119,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
   {
     title = Util.string_of_text_construct e.title;
     link;
+    id = Some e.id;
     date;
     feed;
     author = author.name;
@@ -147,9 +155,13 @@ let post_of_rss2 ~(feed : Feed.t) it =
         Some u.data
     | None, None -> None
   in
+  let link = Option.map (resolve_uri ~feed) link in
+  (* The guid is a stable, globally-unique identity when present. *)
+  let id = Option.map (fun (g : Syndic.Rss2.guid) -> g.data) it.guid in
   {
     title;
     link;
+    id;
     feed;
     author = feed.name;
     email = string_of_option it.author;
@@ -174,10 +186,14 @@ let mk_entry post =
     | None -> []
   in
   (* TODO: include source *)
+  (* Preserve the feed's own stable identity (Atom <id>, RSS2 guid) so that
+     entries keep a consistent id across fetches. Fall back to the link, then
+     to a digest of the title. *)
   let id =
-    match post.link with
-    | Some l -> l
-    | None -> Uri.of_string (Digest.to_hex (Digest.string post.title))
+    match (post.id, post.link) with
+    | Some id, _ -> id
+    | None, Some l -> l
+    | None, None -> Uri.of_string (Digest.to_hex (Digest.string post.title))
   in
   let authors = (Syndic.Atom.author ~email:post.email post.author, []) in
   let title : Syndic.Atom.text_construct = Syndic.Atom.Text post.title in
@@ -193,9 +209,31 @@ let mk_entry post =
 
 let mk_entries posts = List.map mk_entry posts
 
+(* Stable identity used to deduplicate posts: the feed's own id (Atom <id>,
+   RSS2 guid), else the link, else the title. *)
+let post_identity p =
+  match (p.id, p.link) with
+  | Some id, _ -> Uri.to_string id
+  | None, Some l -> Uri.to_string l
+  | None, None -> p.title
+
+(* Drop duplicate posts, keeping the first occurrence (i.e. the most recent,
+   since the list is sorted by date). *)
+let dedup_posts posts =
+  let seen = Hashtbl.create 64 in
+  List.filter
+    (fun p ->
+      let key = post_identity p in
+      if Hashtbl.mem seen key then false
+      else (
+        Hashtbl.add seen key ();
+        true))
+    posts
+
 let get_posts ?n ?(ofs = 0) planet_feeds =
   let posts = List.concat @@ List.map posts_of_feed planet_feeds in
   let posts = List.sort post_compare posts in
+  let posts = dedup_posts posts in
   let posts = remove ofs posts in
   match n with None -> posts | Some n -> take n posts
 

@@ -9,6 +9,9 @@
   because an `<entry>` is missing the mandatory `<updated>` element: it is
   defaulted to the entry's `<published>`, else the feed-level `<updated>`
   (#20). Also exposes `River.repair_missing_updated`.
+- Respect the feed's own entry identity (Atom `<id>`, RSS2 guid) when
+  generating Atom entries, resolve relative entry links to absolute URLs, and
+  deduplicate merged posts (#13)
 
 # 0.5 - 2026-08-25
 
