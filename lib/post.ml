@@ -41,8 +41,7 @@ let plain_text_of_html s =
   if text = "" then None else Some text
 
 let resolve_links_attr ~xmlbase attr el =
-  Soup.R.attribute attr el
-  |> Uri.of_string
+  Soup.R.attribute attr el |> Uri.of_string
   |> Syndic.XML.resolve ~xmlbase
   |> Uri.to_string
   |> fun value -> Soup.set_attribute attr value el
@@ -53,12 +52,13 @@ let undesired_attr = [ "id" ]
 
 let html_of_text ?xmlbase s =
   let soup = Soup.parse s in
-  let ($$) = Soup.($$) in
+  let ( $$ ) = Soup.( $$ ) in
   soup $$ "a[href]" |> Soup.iter (resolve_links_attr ~xmlbase "href");
   soup $$ "img[src]" |> Soup.iter (resolve_links_attr ~xmlbase "src");
   undesired_tags |> List.iter (fun tag -> soup $$ tag |> Soup.iter Soup.delete);
-  soup $$ "*" |> Soup.iter (fun el ->
-    undesired_attr |> List.iter (fun attr -> Soup.delete_attribute attr el));
+  soup $$ "*"
+  |> Soup.iter (fun el ->
+         undesired_attr |> List.iter (fun attr -> Soup.delete_attribute attr el));
   soup
 
 (* Do not trust sites using XML for HTML content. Convert to string and parse
@@ -207,8 +207,8 @@ let mk_entry post =
   in
   (* TODO: include source *)
   (* Preserve the feed's own stable identity (Atom <id>, RSS2 guid) so that
-     entries keep a consistent id across fetches. Fall back to the link, then
-     to a digest of the title. *)
+     entries keep a consistent id across fetches. Fall back to the link, then to
+     a digest of the title. *)
   let id =
     match (post.id, post.link) with
     | Some id, _ -> id
@@ -229,8 +229,8 @@ let mk_entry post =
 
 let mk_entries posts = List.map mk_entry posts
 
-(* Stable identity used to deduplicate posts: the feed's own id (Atom <id>,
-   RSS2 guid), else the link, else the title. *)
+(* Stable identity used to deduplicate posts: the feed's own id (Atom <id>, RSS2
+   guid), else the link, else the title. *)
 let post_identity p =
   match (p.id, p.link) with
   | Some id, _ -> Uri.to_string id

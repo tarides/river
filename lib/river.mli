@@ -23,12 +23,12 @@ type post
 
 val fetch :
   ?timeout:float -> ?user_agent:string -> ?repair:bool -> source -> feed
-(** [fetch ?timeout ?user_agent ?repair source] returns an Atom or RSS feed
-    from a source.
+(** [fetch ?timeout ?user_agent ?repair source] returns an Atom or RSS feed from
+    a source.
 
     @param timeout Connection timeout in seconds. Default: [3.].
-    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default.
+    @param user_agent
+      Value sent in the [User-Agent] HTTP header. Omitted by default.
     @param repair
       When [true], if the document fails to parse as-is, retry after two
       conservative fix-ups: self-closing HTML void elements (see
@@ -103,20 +103,19 @@ val meta_description :
     name "description" or "og:description".
 
     @param timeout Connection timeout in seconds. Default: [3.].
-    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default. *)
+    @param user_agent
+      Value sent in the [User-Agent] HTTP header. Omitted by default. *)
 
-val seo_image :
-  ?timeout:float -> ?user_agent:string -> post -> string option
+val seo_image : ?timeout:float -> ?user_agent:string -> post -> string option
 (** [seo_image ?timeout ?user_agent post] is the image to be used by social
     networks and links to the post.
 
     @param timeout Connection timeout in seconds. Default: [3.].
-    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default.
+    @param user_agent
+      Value sent in the [User-Agent] HTTP header. Omitted by default.
 
-    To get the seo image, we make get the content of [link post] and look for an
-    HTML meta tag with the name "og:image" or "twitter:image". *)
+      To get the seo image, we make get the content of [link post] and look for
+      an HTML meta tag with the name "og:image" or "twitter:image". *)
 
 val create_atom_entries : post list -> Syndic.Atom.entry list
 (** [create_atom_feed posts] creates a list of atom entries, which can then be

@@ -23,11 +23,11 @@ val get : ?timeout:float -> ?user_agent:string -> string -> string
     GET request on [uri].
 
     @param timeout Connection timeout in seconds. Default: [3.].
-    @param user_agent Value sent in the [User-Agent] HTTP header. Omitted by
-      default.
+    @param user_agent
+      Value sent in the [User-Agent] HTTP header. Omitted by default.
 
-    If the answer of is a redirection, it will follow the redirections up to 5
-    redirects.
+      If the answer of is a redirection, it will follow the redirections up to 5
+      redirects.
 
-    The answer is cached for [cache_secs] seconds, where [cache_secs] is 3600
-    seconds (1 hour) by default. *)
+      The answer is cached for [cache_secs] seconds, where [cache_secs] is 3600
+      seconds (1 hour) by default. *)

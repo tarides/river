@@ -25,7 +25,8 @@ let one_post ~url xml =
   | [ p ] -> p
   | ps -> failwith (Printf.sprintf "expected 1 post, got %d" (List.length ps))
 
-(* --- Issue #13: respect the source <id> and resolve relative links --------- *)
+(* --- Issue #13: respect the source <id> and resolve relative links
+   --------- *)
 
 let atom_two_entries =
   {xml|<?xml version="1.0" encoding="UTF-8"?>
@@ -72,7 +73,8 @@ let () =
   check "output entry id is not the link"
     (not (List.mem "https://example.org/Posts/One" ids))
 
-(* --- Issue #13: deduplication (river.mli promises deduplicated posts) ------- *)
+(* --- Issue #13: deduplication (river.mli promises deduplicated posts)
+   ------- *)
 
 let atom_duplicated_id =
   {xml|<?xml version="1.0" encoding="UTF-8"?>
@@ -102,7 +104,8 @@ let () =
   let posts = River__Post.get_posts [ feed ] in
   check "entries sharing an <id> are deduplicated" (List.length posts = 1)
 
-(* --- Issue #12: use the feed's <summary> / <description> ------------------- *)
+(* --- Issue #12: use the feed's <summary> / <description>
+   ------------------- *)
 
 let atom_with_summary =
   {xml|<?xml version="1.0" encoding="UTF-8"?>

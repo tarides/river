@@ -1,7 +1,8 @@
 (* Regression tests for [~repair] / [sanitize_void_elements]: feeds that are
    valid Atom apart from HTML void elements that are not self-closed. *)
 
-let source : River.source = { name = "test"; url = "https://example.org/feed.xml" }
+let source : River.source =
+  { name = "test"; url = "https://example.org/feed.xml" }
 
 let well_formed (xml : string) : bool =
   let i = Xmlm.make_input (`String (0, xml)) in
@@ -12,9 +13,9 @@ let well_formed (xml : string) : bool =
     true
   with Xmlm.Error _ -> false
 
-(* An Atom feed whose xhtml content mixes the three <img> shapes:
-   bare (unclosed), redundantly closed, and already self-closed. Only the
-   first two break strict XML parsing. *)
+(* An Atom feed whose xhtml content mixes the three <img> shapes: bare
+   (unclosed), redundantly closed, and already self-closed. Only the first two
+   break strict XML parsing. *)
 let malformed_atom =
   {|<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -69,7 +70,8 @@ let () =
       ]
   in
   assert (
-    String.equal well_formed_atom (River.sanitize_void_elements well_formed_atom));
+    String.equal well_formed_atom
+      (River.sanitize_void_elements well_formed_atom));
   let clean = River.of_string ~repair:true source well_formed_atom in
   assert (List.length (River.posts [ clean ]) = 1);
 

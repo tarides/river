@@ -22,14 +22,15 @@ let string_of_feed = function Atom _ -> "Atom" | Rss2 _ -> "Rss2"
 
 type t = { name : string; title : string; url : string; content : content }
 
-(* HTML void elements: they have no content and, in HTML, need no closing
-   tag. In XML (and hence in Atom [type="xhtml"] content) they must be
+(* HTML void elements: they have no content and, in HTML, need no closing tag.
+   In XML (and hence in Atom [type="xhtml"] content) they must be
    self-closed. *)
 let void_elements =
   "area\\|base\\|br\\|col\\|embed\\|hr\\|img\\|input\\|link\\|meta\\|param\\|source\\|track\\|wbr"
 
 let void_pair_re =
-  Str.regexp_case_fold ("<\\(" ^ void_elements ^ "\\)\\([^>]*\\)></\\1[ \t\r\n]*>")
+  Str.regexp_case_fold
+    ("<\\(" ^ void_elements ^ "\\)\\([^>]*\\)></\\1[ \t\r\n]*>")
 
 let void_open_re =
   Str.regexp_case_fold ("<\\(" ^ void_elements ^ "\\)\\([^>]*\\)>")
@@ -37,21 +38,22 @@ let void_open_re =
 (* Postel's-law repair for "almost-XHTML" feeds.
 
    Some feeds declare [<content type="xhtml">] — which RFC 4287 requires to be
-   well-formed XML — yet embed HTML void elements that are either left
-   unclosed ([<img ...>]) or closed with a redundant end tag
-   ([<img ...></img>]). A strict XML parser (xmlm, and therefore Syndic) then
-   rejects the whole feed. [sanitize_void_elements] rewrites both shapes into
-   the self-closing form so the document becomes well-formed.
+   well-formed XML — yet embed HTML void elements that are either left unclosed
+   ([<img ...>]) or closed with a redundant end tag ([<img ...></img>]). A
+   strict XML parser (xmlm, and therefore Syndic) then rejects the whole feed.
+   [sanitize_void_elements] rewrites both shapes into the self-closing form so
+   the document becomes well-formed.
 
    It is deliberately conservative: it only touches the known HTML void
-   elements, and only their raw, unescaped occurrences — escaped
-   [type="html"] content has no literal '<', so it is never affected. *)
+   elements, and only their raw, unescaped occurrences — escaped [type="html"]
+   content has no literal '<', so it is never affected. *)
 let sanitize_void_elements (xml : string) : string =
   (* Pass 1: [<img ...></img>] -> [<img ... />] (drop the redundant end tag). *)
   let xml =
     Str.global_substitute void_pair_re
       (fun s ->
-        Printf.sprintf "<%s%s />" (Str.matched_group 1 s) (Str.matched_group 2 s))
+        Printf.sprintf "<%s%s />" (Str.matched_group 1 s)
+          (Str.matched_group 2 s))
       xml
   in
   (* Pass 2: bare [<img ...>] -> [<img ... />], leaving already self-closed
@@ -62,7 +64,8 @@ let sanitize_void_elements (xml : string) : string =
       if attrs <> "" && attrs.[String.length attrs - 1] = '/' then
         Str.matched_string s
       else
-        Printf.sprintf "<%s%s />" (Str.matched_group 1 s) (Str.matched_group 2 s))
+        Printf.sprintf "<%s%s />" (Str.matched_group 1 s)
+          (Str.matched_group 2 s))
     xml
 
 (* Substring search: index of the first occurrence of [needle] in [hay] at or
@@ -102,19 +105,18 @@ let fill_from_published block =
       let v = String.trim (Str.matched_group 2 block) in
       let after = Str.match_end () in
       Some
-        (String.sub block 0 after
-        ^ "<updated>" ^ v ^ "</updated>"
+        (String.sub block 0 after ^ "<updated>" ^ v ^ "</updated>"
         ^ String.sub block after (String.length block - after))
 
 (* Semantic repair for well-formed Atom feeds that Syndic rejects because an
    <entry> has no <updated>, which RFC 4287 makes mandatory. Many generators
-   emit <published> without <updated> for never-edited posts, and one such
-   entry makes Syndic drop the whole feed. [repair_missing_updated] defaults a
-   missing entry <updated> to, in order of preference: the entry's own
-   <published>, else the feed-level <updated>. This is a semantically safe
-   reconstruction — RFC 4287 defines [updated] as the last significant change,
-   which for an unedited entry is its publication — and exactly the fallback
-   mainstream generators (jekyll-feed, Zola, Hugo) use.
+   emit <published> without <updated> for never-edited posts, and one such entry
+   makes Syndic drop the whole feed. [repair_missing_updated] defaults a missing
+   entry <updated> to, in order of preference: the entry's own <published>, else
+   the feed-level <updated>. This is a semantically safe reconstruction — RFC
+   4287 defines [updated] as the last significant change, which for an unedited
+   entry is its publication — and exactly the fallback mainstream generators
+   (jekyll-feed, Zola, Hugo) use.
 
    Like [sanitize_void_elements] it is conservative and meant only for the
    [~repair] retry: it edits the raw text of the default (unprefixed) Atom
@@ -149,7 +151,8 @@ let repair_missing_updated (xml : string) : string =
                 Buffer.add_substring buf xml !pos (String.length xml - !pos);
                 continue := false
             | Some cstart ->
-                (* Text before this entry, then the entry's open tag, verbatim. *)
+                (* Text before this entry, then the entry's open tag,
+                   verbatim. *)
                 Buffer.add_substring buf xml !pos (estart - !pos);
                 Buffer.add_substring buf xml estart (open_end - estart);
                 let inner = String.sub xml open_end (cstart - open_end) in
@@ -176,12 +179,14 @@ let classify_feed ~xmlbase ?(repair = false) (xml : string) =
       Rss2 (Syndic.Rss2.parse ~xmlbase (Xmlm.make_input (`String (0, xml))))
   in
   try parse xml
-  with Syndic.Atom.Error.Error _ | Syndic.Rss2.Error.Error _ ->
-    (* Not well-formed as-is. Only retry a repaired copy when explicitly asked
-       to, so well-formed feeds are never modified and the default behaviour is
-       unchanged. *)
-    if not repair then failwith "Neither Atom nor RSS2 feed"
-    else (
+  with Syndic.Atom.Error.Error _ | Syndic.Rss2.Error.Error _ -> (
+    if
+      (* Not well-formed as-is. Only retry a repaired copy when explicitly asked
+         to, so well-formed feeds are never modified and the default behaviour
+         is unchanged. *)
+      not repair
+    then failwith "Neither Atom nor RSS2 feed"
+    else
       (* Void-element repair first (makes the document well-formed XML), then
          fill any entry missing a mandatory <updated>. Each pass is a no-op on
          feeds that do not need it, so both classes recover in one retry. *)

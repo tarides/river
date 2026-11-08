@@ -2,7 +2,8 @@
    well-formed XML but that Syndic rejects because an <entry> is missing the
    mandatory <updated> element (RFC 4287). *)
 
-let source : River.source = { name = "test"; url = "https://example.org/feed.xml" }
+let source : River.source =
+  { name = "test"; url = "https://example.org/feed.xml" }
 
 let well_formed (xml : string) : bool =
   let i = Xmlm.make_input (`String (0, xml)) in
@@ -109,7 +110,10 @@ let () =
   let feed = River.of_string ~repair:true source missing_updated in
   let posts = River.posts [ feed ] in
   assert (List.length posts = 2);
-  assert (date_is (post_titled posts "Modular Explicits in OCaml") "2024-05-10T00:00:00Z");
+  assert (
+    date_is
+      (post_titled posts "Modular Explicits in OCaml")
+      "2024-05-10T00:00:00Z");
 
   (* An entry with neither date falls back to the feed-level <updated>. *)
   let feed = River.of_string ~repair:true source no_entry_dates in
@@ -128,7 +132,8 @@ let () =
   let once = River.repair_missing_updated missing_updated in
   assert (String.equal once (River.repair_missing_updated once));
   assert (
-    String.equal well_formed_atom (River.repair_missing_updated well_formed_atom));
+    String.equal well_formed_atom
+      (River.repair_missing_updated well_formed_atom));
   let clean = River.of_string ~repair:true source well_formed_atom in
   assert (List.length (River.posts [ clean ]) = 1);
 

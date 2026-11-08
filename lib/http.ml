@@ -53,9 +53,7 @@ let rec get_uri ~headers ~timeout uri = function
                 get_uri ~headers ~timeout new_uri (n - 1))
         | _ -> raise @@ Status_unhandled (string_of_status resp.status)
       in
-      let timeout =
-        Lwt_unix.sleep timeout >>= fun () -> Lwt.fail Timeout
-      in
+      let timeout = Lwt_unix.sleep timeout >>= fun () -> Lwt.fail Timeout in
       Lwt.pick [ main; timeout ]
 
 let get ?(timeout = 3.) ?user_agent url =
