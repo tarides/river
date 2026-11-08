@@ -32,6 +32,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # OCaml < 4.14 does not build with C23, which recent GCC uses by default.
+      - name: Build old compilers as C11
+        if: ${{ matrix.ocaml-compiler == '4.11' }}
+        run: echo "CC=gcc -std=gnu11" >> "$GITHUB_ENV"
+
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v3
         with:
