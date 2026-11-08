@@ -1,3 +1,18 @@
+# Unreleased
+
+- Fix post descriptions (#22):
+  - `summary` no longer runs words together across block elements (e.g. list
+    items) and collapses whitespace, including non-breaking spaces; scripts
+    and styles are dropped, and Atom `type="xhtml"` summaries keep their
+    block boundaries.
+  - `meta_description` now finds the standard `<meta name="description">`
+    tag (case-insensitively), keeping `property="description"` as a fallback,
+    and skips empty tags.
+  - **Behaviour change:** an RSS2 `<description>` is only treated as a summary
+    when the item also has a non-blank `<content:encoded>`. Otherwise it is the
+    post content (often the whole article), `summary` is `None`, and
+    `meta_description` fetches the post's page to read its meta tags.
+
 # 0.6 - 2026-09-02
 
 - Add an opt-in `?repair` flag to `River.fetch` (and a new `River.of_string`)

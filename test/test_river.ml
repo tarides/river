@@ -124,9 +124,10 @@ let atom_with_summary =
   </entry>
 </feed>|xml}
 
+(* Has <content:encoded>, so <description> is a genuine summary (#22). *)
 let rss2_with_description =
   {xml|<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Test channel</title>
     <link>https://example.org/</link>
@@ -136,6 +137,7 @@ let rss2_with_description =
       <link>https://example.org/rss-post</link>
       <guid>https://example.org/rss-post</guid>
       <description>A concise RSS description.</description>
+      <content:encoded><![CDATA[<p>The full article body.</p>]]></content:encoded>
       <pubDate>Wed, 03 Jan 2024 00:00:00 GMT</pubDate>
     </item>
   </channel>
@@ -176,6 +178,175 @@ let () =
   let p = one_post ~url:"https://example.org/rss" rss2_without_description in
   check "no summary when the feed provides none"
     (River.summary (to_post p) = None)
+
+(* --- Issue #22: word breaks, <meta name="description">, RSS2 summary ------ *)
+
+let rss2_description_only =
+  {xml|<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test channel</title>
+    <link>https://example.org/</link>
+    <description>A channel</description>
+    <item>
+      <title>RSS post</title>
+      <link>https://example.org/rss-post</link>
+      <guid>https://example.org/rss-post</guid>
+      <description>&lt;p&gt;The whole article, in the description.&lt;/p&gt;</description>
+      <pubDate>Wed, 03 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>|xml}
+
+let () =
+  let p = one_post ~url:"https://example.org/rss" rss2_description_only in
+  check "rss2 <description> used as content is not a summary"
+    (River.summary (to_post p) = None);
+  check "rss2 <description> still used as content"
+    (River.content (to_post p) <> "")
+
+let () =
+  let pt = River__Post.plain_text_of_html in
+  check "list items are separated"
+    (pt
+       {|<ul><li><a href="https://a.example/">tinybox: 150 classic games</a></li><li><a href="https://b.example/">IX, a full OS</a></li></ul>|}
+    = Some "tinybox: 150 classic games IX, a full OS");
+  check "paragraphs are separated" (pt "<p>a</p><p>b</p>" = Some "a b");
+  check "line breaks separate words" (pt "a<br>b" = Some "a b");
+  check "inline markup does not split words"
+    (pt "foo<em>bar</em>" = Some "foobar");
+  check "whitespace is collapsed"
+    (pt "  one\n\n  two\tthree  " = Some "one two three");
+  check "plain text is unchanged" (pt "Just text." = Some "Just text.");
+  check "empty html gives None" (pt "<p> </p>" = None)
+
+let () =
+  let d = River__Meta.description in
+  check "meta name=description is found"
+    (d {|<html><head><meta name="description" content="Plain."></head></html>|}
+    = Some "Plain.");
+  check "meta property=description is a fallback"
+    (d
+       {|<html><head><meta property="description" content="Prop."></head></html>|}
+    = Some "Prop.");
+  check "og:description takes precedence"
+    (d
+       {|<html><head><meta name="description" content="Plain."><meta property="og:description" content="OG."></head></html>|}
+    = Some "OG.");
+  check "name=description without content falls back to property"
+    (d
+       {|<html><head><meta name="description"><meta property="description" content="Prop."></head></html>|}
+    = Some "Prop.");
+  check "no description meta gives None"
+    (d {|<html><head><title>t</title></head></html>|} = None)
+
+let () =
+  let pt = River__Post.plain_text_of_html in
+  check "nbsp-only html gives None" (pt "<p>&nbsp;</p>" = None);
+  check "nbsp is collapsed and trimmed"
+    (pt "<p>&nbsp;a&nbsp;&nbsp;b&nbsp;</p>" = Some "a b");
+  check "form feed is whitespace" (pt "a\012b" = Some "a b");
+  check "scripts and styles are dropped"
+    (pt "<p>a</p><script>var x=1;</script><style>p{}</style><p>b</p>"
+    = Some "a b");
+  check "details/summary are separated"
+    (pt "<details><summary>s</summary>body</details>" = Some "s body")
+
+let () =
+  let d = River__Meta.description in
+  check "empty name=description falls back to property"
+    (d
+       {|<html><head><meta name="description" content=""><meta property="description" content="Prop."></head></html>|}
+    = Some "Prop.");
+  check "empty og:description falls back to name=description"
+    (d
+       {|<html><head><meta property="og:description" content=" "><meta name="description" content="Plain."></head></html>|}
+    = Some "Plain.");
+  check "meta name is matched case-insensitively"
+    (d {|<html><head><meta name="Description" content="Cap."></head></html>|}
+    = Some "Cap.")
+
+let atom_summary ~typ body =
+  Printf.sprintf
+    {xml|<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Test feed</title>
+  <id>urn:uuid:feed-0000</id>
+  <updated>2024-01-01T00:00:00Z</updated>
+  <author><name>Test Author</name></author>
+  <entry>
+    <title>Atom post</title>
+    <id>urn:uuid:aaaaaaaa-0000-0000-0000-000000000001</id>
+    <updated>2024-01-03T00:00:00Z</updated>
+    <link href="https://example.org/atom-post" rel="alternate"/>
+    <summary type="%s">%s</summary>
+    <content type="html">full body here</content>
+  </entry>
+</feed>|xml}
+    typ body
+
+let () =
+  let summary xml =
+    River.summary (to_post (one_post ~url:"https://example.org/atom" xml))
+  in
+  check "atom html summary list items are separated"
+    (summary
+       (atom_summary ~typ:"html"
+          "&lt;ul&gt;&lt;li&gt;one&lt;/li&gt;&lt;li&gt;two&lt;/li&gt;&lt;/ul&gt;")
+    = Some "one two");
+  check "atom xhtml summary list items are separated"
+    (summary
+       (atom_summary ~typ:"xhtml"
+          {|<div xmlns="http://www.w3.org/1999/xhtml"><ul><li>one</li><li>two</li></ul></div>|})
+    = Some "one two")
+
+let rss2_item ~description ~encoded =
+  Printf.sprintf
+    {xml|<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Test channel</title>
+    <link>https://example.org/</link>
+    <description>A channel</description>
+    <item>
+      <title>RSS post</title>
+      <link>https://example.org/rss-post</link>
+      <guid>https://example.org/rss-post</guid>
+      <description>%s</description>
+      <content:encoded>%s</content:encoded>
+      <pubDate>Wed, 03 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>|xml}
+    description encoded
+
+let () =
+  let post d e =
+    to_post
+      (one_post ~url:"https://example.org/rss"
+         (rss2_item ~description:d ~encoded:e))
+  in
+  check "rss2 description list items are separated"
+    (River.summary
+       (post
+          "&lt;ul&gt;&lt;li&gt;one&lt;/li&gt;&lt;li&gt;two&lt;/li&gt;&lt;/ul&gt;"
+          "&lt;p&gt;Body.&lt;/p&gt;")
+    = Some "one two");
+  let p = post "The description." "   " in
+  check "whitespace-only content:encoded: no summary" (River.summary p = None);
+  check "whitespace-only content:encoded: description is the content"
+    (String.trim (River.content p) <> "")
+
+(* An RSS2 description-only post has no summary, so [meta_description] reads the
+   page's meta tags. Pre-seed the cached page to stay offline. *)
+let () =
+  let p = one_post ~url:"https://example.org/rss" rss2_description_only in
+  p.River__Post.link_response <-
+    Some
+      (Ok
+         {|<html><head><meta name="description" content="From the page."></head></html>|});
+  check "meta_description falls back to the page for description-only rss2"
+    (River.meta_description (to_post p) = Some "From the page.")
 
 let () =
   if !failures > 0 then (

@@ -33,11 +33,83 @@ type t = {
 let resolve_uri ~(feed : Feed.t) uri =
   Syndic.XML.resolve ~xmlbase:(Some (Uri.of_string feed.url)) uri
 
+(* Things that posts should not contain *)
+let undesired_tags = [ "style"; "script" ]
+let undesired_attr = [ "id" ]
+
+(* Elements whose boundaries separate words in rendered text. *)
+let block_tags =
+  [
+    "address";
+    "article";
+    "aside";
+    "blockquote";
+    "br";
+    "caption";
+    "center";
+    "dd";
+    "details";
+    "div";
+    "dl";
+    "dt";
+    "fieldset";
+    "figcaption";
+    "figure";
+    "footer";
+    "form";
+    "h1";
+    "h2";
+    "h3";
+    "h4";
+    "h5";
+    "h6";
+    "header";
+    "hr";
+    "legend";
+    "li";
+    "main";
+    "nav";
+    "noscript";
+    "ol";
+    "option";
+    "p";
+    "pre";
+    "section";
+    "summary";
+    "table";
+    "tbody";
+    "td";
+    "tfoot";
+    "th";
+    "thead";
+    "title";
+    "tr";
+    "ul";
+  ]
+
+(* ASCII whitespace (including form feed) and U+00A0 (&nbsp;, UTF-8 encoded). *)
+let whitespace_run = Str.regexp "\\([ \t\n\r\012]\\|\194\160\\)+"
+
 (* Extract plain text from a (possibly HTML) string, returning [None] when the
    result is empty. Used to turn a feed's <summary>/<description> into a clean
-   text description. *)
+   text description. Scripts and styles are dropped, a space is inserted at
+   block-element boundaries so that e.g. list items do not run together, and
+   whitespace runs (including non-breaking spaces) are collapsed. *)
 let plain_text_of_html s =
-  let text = Soup.parse s |> Soup.texts |> String.concat "" |> String.trim in
+  let soup = Soup.parse s in
+  undesired_tags
+  |> List.iter (fun tag -> Soup.select tag soup |> Soup.iter Soup.delete);
+  Soup.descendants soup |> Soup.elements
+  |> Soup.filter (fun el -> List.mem (Soup.name el) block_tags)
+  |> Soup.to_list
+  |> List.iter (fun el ->
+         Soup.prepend_child el (Soup.create_text " ");
+         Soup.append_child el (Soup.create_text " "));
+  let text =
+    Soup.texts soup |> String.concat ""
+    |> Str.global_replace whitespace_run " "
+    |> String.trim
+  in
   if text = "" then None else Some text
 
 let resolve_links_attr ~xmlbase attr el =
@@ -45,10 +117,6 @@ let resolve_links_attr ~xmlbase attr el =
   |> Syndic.XML.resolve ~xmlbase
   |> Uri.to_string
   |> fun value -> Soup.set_attribute attr value el
-
-(* Things that posts should not contain *)
-let undesired_tags = [ "style"; "script" ]
-let undesired_attr = [ "id" ]
 
 let html_of_text ?xmlbase s =
   let soup = Soup.parse s in
@@ -63,12 +131,20 @@ let html_of_text ?xmlbase s =
 
 (* Do not trust sites using XML for HTML content. Convert to string and parse
    back. (Does not always fix bad HTML unfortunately.) *)
-let html_of_syndic =
+let string_of_xhtml =
   let ns_prefix _ = Some "" in
-  fun ?xmlbase h ->
-    html_of_text ?xmlbase
-      (String.concat "" (List.map (Syndic.XML.to_string ~ns_prefix) h))
+  fun h -> String.concat "" (List.map (Syndic.XML.to_string ~ns_prefix) h)
 
+let html_of_syndic ?xmlbase h = html_of_text ?xmlbase (string_of_xhtml h)
+
+(* Plain text of an Atom text construct. XHTML is serialised with its markup
+   (unlike [Util.string_of_text_construct]) so that block boundaries survive. *)
+let plain_text_of_text_construct : Syndic.Atom.text_construct -> string option =
+  function
+  | Text s | Html (_, s) -> plain_text_of_html s
+  | Xhtml (_, h) -> plain_text_of_html (string_of_xhtml h)
+
+let is_blank s = String.trim s = ""
 let string_of_option = function None -> "" | Some s -> s
 
 (* Email on the forge contain the name in parenthesis *)
@@ -126,7 +202,7 @@ let post_of_atom ~(feed : Feed.t) (e : Syndic.Atom.entry) =
   let author, _ = e.authors in
   let summary =
     match e.summary with
-    | Some s -> plain_text_of_html (Util.string_of_text_construct s)
+    | Some s -> plain_text_of_text_construct s
     | None -> None
   in
   {
@@ -148,7 +224,7 @@ let post_of_rss2 ~(feed : Feed.t) it =
     | All (t, xmlbase, d) -> (
         ( t,
           match it.content with
-          | _, "" -> html_of_text ?xmlbase d
+          | _, c when is_blank c -> html_of_text ?xmlbase d
           | xmlbase, c -> html_of_text ?xmlbase c ))
     | Title t ->
         let xmlbase, c = it.content in
@@ -156,7 +232,7 @@ let post_of_rss2 ~(feed : Feed.t) it =
     | Description (xmlbase, d) -> (
         ( "",
           match it.content with
-          | _, "" -> html_of_text ?xmlbase d
+          | _, c when is_blank c -> html_of_text ?xmlbase d
           | xmlbase, c -> html_of_text ?xmlbase c ))
   in
   let link =
@@ -172,10 +248,15 @@ let post_of_rss2 ~(feed : Feed.t) it =
   let link = Option.map (resolve_uri ~feed) link in
   (* The guid is a stable, globally-unique identity when present. *)
   let id = Option.map (fun (g : Syndic.Rss2.guid) -> g.data) it.guid in
+  (* <description> is only a summary when <content:encoded> carries the body;
+     otherwise it was used as the content above, and may be the whole article,
+     so leave the summary empty and let [meta_description] fall back to the
+     page's meta tags. *)
   let summary =
-    match it.Syndic.Rss2.story with
-    | All (_, _, d) | Description (_, d) -> plain_text_of_html d
-    | Title _ -> None
+    match (it.Syndic.Rss2.story, it.content) with
+    | _, (_, c) when is_blank c -> None
+    | Title _, _ -> None
+    | (All (_, _, d) | Description (_, d)), _ -> plain_text_of_html d
   in
   {
     title;

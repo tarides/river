@@ -49,12 +49,24 @@ let og_description html =
     |> Option.some
   with Failure _ -> None
 
-let description html =
+(* Non-blank [content] of the first [<meta>] whose [attr] attribute equals
+   [value], compared ASCII case-insensitively as HTML specifies for [name]. *)
+let meta_content ~attr ~value html =
   let open Soup in
-  let soup = parse html in
-  try
-    soup $ "meta[property=description]" |> R.attribute "content" |> Option.some
-  with Failure _ -> None
+  parse html $$ "meta" |> to_list
+  |> List.find_map (fun el ->
+         match (attribute attr el, attribute "content" el) with
+         | Some a, Some c
+           when String.lowercase_ascii a = value && String.trim c <> "" ->
+             Some c
+         | _ -> None)
+
+(* The standard tag is [<meta name="description">]; [property="description"] is
+   kept as a fallback for pages that misuse the Open Graph attribute. *)
+let description_tag html =
+  match meta_content ~attr:"name" ~value:"description" html with
+  | Some _ as d -> d
+  | None -> meta_content ~attr:"property" ~value:"description" html
 
 let preview_image html =
   let preview_image =
@@ -71,10 +83,10 @@ let preview_image html =
   | None -> None
 
 let description html =
-  let preview_image =
-    match og_description html with None -> description html | Some x -> Some x
-  in
-  match Option.map String.trim preview_image with
-  | Some "" -> None
-  | Some x -> Some x
-  | None -> None
+  let candidates = [ og_description; description_tag ] in
+  List.find_map
+    (fun f ->
+      match Option.map String.trim (f html) with
+      | Some "" | None -> None
+      | Some x -> Some x)
+    candidates
