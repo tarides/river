@@ -91,7 +91,11 @@ val content : post -> string
 val summary : post -> string option
 (** [summary post] is the short description provided by the feed itself: the
     Atom [<summary>] or the RSS2 [<description>], as plain text. [None] when the
-    feed provides no such element. *)
+    feed provides no such element.
+
+    An RSS2 [<description>] counts as a summary only when the item also has a
+    [<content:encoded>] element. Without one, [<description>] holds the post
+    content (often the whole article), and [summary] is [None]. *)
 
 val meta_description :
   ?timeout:float -> ?user_agent:string -> post -> string option
@@ -99,8 +103,9 @@ val meta_description :
     post.
 
     When the feed provides one, [summary post] is returned directly. Otherwise
-    we fetch the content of [link post] and look for an HTML meta tag with the
-    name "description" or "og:description".
+    we fetch the content of [link post] (an HTTP request) and look for an HTML
+    meta tag with the Open Graph property "og:description", else the name
+    "description" (or, as a fallback, the property "description").
 
     @param timeout Connection timeout in seconds. Default: [3.].
     @param user_agent
