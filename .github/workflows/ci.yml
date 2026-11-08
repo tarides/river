@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build-and-test:
@@ -13,40 +13,54 @@ jobs:
 
       matrix:
         os:
-          - macos-latest
           - ubuntu-latest
+          - macos-latest
           - windows-latest
 
         ocaml-compiler:
-          - 4.12.x
+          - 5
+
+        include:
+          # Lower bound declared in dune-project.
+          - os: ubuntu-latest
+            ocaml-compiler: 4.08
 
     runs-on: ${{ matrix.os }}
 
     steps:
-
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-          dune-cache: ${{ matrix.os != 'macos-latest' }}
-
-      - name: Install ocamlformat
-        run: opam install ocamlformat.0.18.0
-        if: ${{ matrix.os == 'ubuntu-latest' }}
 
       - name: Install opam packages
-        run: opam install . --with-test
-
-      - name: Check formatting
-        run: make fmt
-        if: ${{ matrix.os == 'ubuntu-latest' && always() }}
+        run: opam install . --deps-only --with-test
 
       - name: Run build
-        run: make build
+        run: opam exec -- dune build
 
       - name: Run the unit tests
-        run: make test
-        timeout-minutes: 1
+        run: opam exec -- dune runtest
+        timeout-minutes: 5
+
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use OCaml 4.14
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14
+
+      # Must match the version pinned in .ocamlformat.
+      - name: Install ocamlformat
+        run: opam install ocamlformat.0.20.1
+
+      - name: Check formatting
+        run: opam exec -- dune build @fmt
