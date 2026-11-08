@@ -1,5 +1,6 @@
-# Unreleased
+# 0.6.1 - 2026-11-08
 
+- Raise the OCaml lower bound to 4.11
 - Fix post descriptions (#22):
   - `summary` no longer runs words together across block elements (e.g. list
     items) and collapses whitespace, including non-breaking spaces; scripts
