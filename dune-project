@@ -21,7 +21,7 @@
  (description "RSS2 and Atom feed aggregator for OCaml")
  (depends
   (ocaml
-   (>= 4.08.0))
+   (>= 4.11.0))
   dune
   (syndic
    (>= 1.5))

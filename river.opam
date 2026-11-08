@@ -9,7 +9,7 @@ homepage: "https://github.com/tarides/river"
 doc: "https://kayceesrk.github.io/river/"
 bug-reports: "https://github.com/tarides/river/issues"
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "4.11.0"}
   "dune" {>= "3.0"}
   "syndic" {>= "1.5"}
   "cohttp" {>= "5.0.0"}
